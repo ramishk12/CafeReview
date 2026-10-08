@@ -2,6 +2,9 @@ package main
 
 import (
 	"log"
+	"os"
+
+	"github.com/joho/godotenv"
 
 	"cafe-review/internal/auth"
 	"cafe-review/internal/config"
@@ -12,6 +15,8 @@ import (
 )
 
 func main() {
+	loadDotEnv()
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal(err)
@@ -49,4 +54,11 @@ func main() {
 	r := server.NewRouter(cfg.UploadDir)
 	log.Printf("listening on :%s", cfg.Port)
 	log.Fatal(r.Run(":" + cfg.Port))
+}
+
+// loadDotEnv reads .env if present. Variables already set in the environment take precedence.
+func loadDotEnv() {
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		log.Fatalf("reading .env: %v", err)
+	}
 }
