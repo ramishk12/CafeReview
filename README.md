@@ -8,8 +8,11 @@ Cafe reviews with user accounts and picture uploads.
 
 ## Setup
 ```bash
-# Database
+# Database (seeds sample cafes, users, and reviews on first start)
 docker compose up -d
+
+# Re-seed from scratch (deletes all database data)
+docker compose down -v && docker compose up -d
 
 # Backend (port 8080)
 go run ./cmd/server
