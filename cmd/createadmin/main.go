@@ -10,6 +10,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/joho/godotenv"
+
 	"cafe-review/internal/auth"
 	"cafe-review/internal/config"
 	"cafe-review/internal/database"
@@ -17,6 +19,10 @@ import (
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
+		log.Fatalf("reading .env: %v", err)
+	}
+
 	email := strings.ToLower(strings.TrimSpace(os.Getenv("ADMIN_EMAIL")))
 	password := os.Getenv("ADMIN_PASSWORD")
 	name := strings.TrimSpace(os.Getenv("ADMIN_NAME"))
