@@ -35,10 +35,13 @@ func NewRouter(uploadDir string) *gin.Engine {
 	authed.PUT("/reviews/:id", handlers.UpdateReview)
 	authed.DELETE("/reviews/:id", handlers.DeleteReview)
 	authed.POST("/reviews/:id/images", handlers.UploadReviewImage)
+	authed.DELETE("/reviews/:id/images/:imageId", handlers.DeleteReviewImage)
 
 	admin := authed.Group("")
 	admin.Use(auth.RequireAdmin())
 	admin.POST("/cafes", handlers.CreateCafe)
+	admin.PUT("/cafes/:id", handlers.UpdateCafe)
+	admin.DELETE("/cafes/:id", handlers.DeleteCafe)
 
 	return r
 }
