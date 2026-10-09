@@ -25,24 +25,33 @@ export default function LoginPage() {
   }
 
   return (
-    <section className="narrow">
-      <h1>Log in</h1>
-      <form onSubmit={handleSubmit} className="stacked-form">
-        <label>
+    <section className="card mx-auto mt-8 max-w-md p-8">
+      <h1 className="mb-6 text-2xl font-bold tracking-tight">Log in</h1>
+      <form onSubmit={handleSubmit} className="grid gap-4">
+        <label className="label">
           Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input type="email" className="field" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </label>
-        <label>
+        <label className="label">
           Password
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <input
+            type="password"
+            className="field"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
         </label>
-        {error && <p className="error">{error}</p>}
-        <button type="submit" disabled={submitting}>
+        {error && <p className="alert-error">{error}</p>}
+        <button type="submit" disabled={submitting} className="btn mt-2">
           {submitting ? 'Logging in...' : 'Log in'}
         </button>
       </form>
-      <p>
-        No account? <Link to="/register">Sign up</Link>
+      <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">
+        No account?{' '}
+        <Link to="/register" className="font-semibold">
+          Sign up
+        </Link>
       </p>
     </section>
   )

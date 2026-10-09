@@ -24,23 +24,28 @@ export default function NewCafePage() {
   }
 
   return (
-    <section className="narrow">
-      <h1>Add a cafe</h1>
-      <form onSubmit={handleSubmit} className="stacked-form">
-        <label>
+    <section className="card mx-auto mt-8 max-w-md p-8">
+      <h1 className="mb-6 text-2xl font-bold tracking-tight">Add a cafe</h1>
+      <form onSubmit={handleSubmit} className="grid gap-4">
+        <label className="label">
           Name
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={255} required />
+          <input className="field" value={name} onChange={(e) => setName(e.target.value)} maxLength={255} required />
         </label>
-        <label>
+        <label className="label">
           Address
-          <input value={address} onChange={(e) => setAddress(e.target.value)} />
+          <input className="field" value={address} onChange={(e) => setAddress(e.target.value)} />
         </label>
-        <label>
+        <label className="label">
           Description
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} />
+          <textarea
+            className="field min-h-24 resize-y"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={4}
+          />
         </label>
-        {error && <p className="error">{error}</p>}
-        <button type="submit" disabled={submitting}>
+        {error && <p className="alert-error">{error}</p>}
+        <button type="submit" disabled={submitting} className="btn mt-2">
           {submitting ? 'Saving...' : 'Create cafe'}
         </button>
       </form>

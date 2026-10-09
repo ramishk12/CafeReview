@@ -54,12 +54,12 @@ export default function ReviewForm({ cafeId, existing, onSaved }) {
   }
 
   return (
-    <form className="review-form" onSubmit={handleSubmit}>
-      <h3>{existing ? 'Edit your review' : 'Write a review'}</h3>
+    <form onSubmit={handleSubmit} className="card mb-8 grid gap-4 p-6">
+      <h3 className="text-lg font-semibold tracking-tight">{existing ? 'Edit your review' : 'Write a review'}</h3>
 
-      <label>
+      <label className="label">
         Rating
-        <select value={rating} onChange={(e) => setRating(e.target.value)}>
+        <select className="field" value={rating} onChange={(e) => setRating(e.target.value)}>
           {[5, 4, 3, 2, 1].map((n) => (
             <option key={n} value={n}>
               {n} {n === 1 ? 'star' : 'stars'}
@@ -68,9 +68,10 @@ export default function ReviewForm({ cafeId, existing, onSaved }) {
         </select>
       </label>
 
-      <label>
+      <label className="label">
         Review
         <textarea
+          className="field min-h-24 resize-y"
           value={body}
           onChange={(e) => setBody(e.target.value)}
           maxLength={2000}
@@ -79,16 +80,24 @@ export default function ReviewForm({ cafeId, existing, onSaved }) {
         />
       </label>
 
-      <label>
+      <label className="label">
         Photos (JPEG, PNG, or WebP, up to 5 MB each)
-        <input type="file" accept={ACCEPTED_TYPES} multiple onChange={handleFiles} />
+        <input
+          type="file"
+          accept={ACCEPTED_TYPES}
+          multiple
+          onChange={handleFiles}
+          className="field file:mr-3 file:cursor-pointer file:rounded-full file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700 dark:file:bg-slate-800 dark:file:text-slate-200"
+        />
       </label>
 
-      {error && <p className="error">{error}</p>}
+      {error && <p className="alert-error">{error}</p>}
 
-      <button type="submit" disabled={submitting}>
-        {submitting ? 'Saving...' : existing ? 'Save changes' : 'Post review'}
-      </button>
+      <div>
+        <button type="submit" disabled={submitting} className="btn">
+          {submitting ? 'Saving...' : existing ? 'Save changes' : 'Post review'}
+        </button>
+      </div>
     </form>
   )
 }

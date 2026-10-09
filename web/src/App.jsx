@@ -9,9 +9,9 @@ import NewCafePage from './pages/NewCafePage.jsx'
 
 export default function App() {
   return (
-    <>
+    <div className="min-h-screen">
       <Navbar />
-      <main className="app">
+      <main className="mx-auto max-w-5xl px-5 pt-8 pb-16">
         <Routes>
           <Route path="/" element={<CafeListPage />} />
           <Route path="/cafes/:id" element={<CafeDetailPage />} />
@@ -25,9 +25,9 @@ export default function App() {
           />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="*" element={<p className="status">Page not found.</p>} />
+          <Route path="*" element={<p className="py-12 text-center text-slate-500">Page not found.</p>} />
         </Routes>
       </main>
-    </>
+    </div>
   )
 }
