@@ -1,10 +1,18 @@
+import { Star } from 'lucide-react'
+
 // Stars renders a rating out of 5. value may be fractional (e.g. the average).
-export default function Stars({ value }) {
+export default function Stars({ value, size = 16 }) {
   const rounded = Math.round(Number(value) || 0)
   return (
-    <span className="whitespace-nowrap text-base tracking-wider text-amber-500" aria-label={`${rounded} out of 5 stars`}>
-      {'★'.repeat(rounded)}
-      <span className="text-slate-300 dark:text-slate-700">{'★'.repeat(5 - rounded)}</span>
+    <span className="inline-flex items-center gap-0.5" aria-label={`${rounded} out of 5 stars`}>
+      {Array.from({ length: 5 }, (_, i) => (
+        <Star
+          key={i}
+          size={size}
+          strokeWidth={2}
+          className={i < rounded ? 'fill-amber-400 text-amber-400' : 'text-slate-300 dark:text-slate-700'}
+        />
+      ))}
     </span>
   )
 }
