@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"errors"
 	"io"
 	"net/http"
@@ -93,4 +94,63 @@ func UploadReviewImage(c *gin.Context) {
 	img.ReviewID = reviewID
 	img.URL = Uploads.URL(filename)
 	c.JSON(http.StatusCreated, img)
+}
+
+// DeleteReviewImage removes one photo from a review owned by the current user.
+func DeleteReviewImage(c *gin.Context) {
+	reviewID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	imageID, ok := parseID(c, "imageId")
+	if !ok {
+		return
+	}
+	if !requireReviewOwner(c, reviewID) {
+		return
+	}
+
+	var filename string
+	err := database.DB.QueryRow(
+		`DELETE FROM review_images WHERE id = $1 AND review_id = $2 RETURNING filename`,
+		imageID, reviewID,
+	).Scan(&filename)
+	if errors.Is(err, sql.ErrNoRows) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	removeImageFiles([]string{filename}) // best effort; the row is already gone
+	c.Status(http.StatusNoContent)
+}
+
+// imageFilenames returns the stored filenames returned by query.
+func imageFilenames(query string, args ...any) ([]string, error) {
+	rows, err := database.DB.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+	}
+	return names, rows.Err()
+}
+
+// removeImageFiles deletes stored image files. Errors are ignored because the
+// database rows that point to them have already been removed.
+func removeImageFiles(names []string) {
+	for _, name := range names {
+		_ = Uploads.Delete(name)
+	}
 }

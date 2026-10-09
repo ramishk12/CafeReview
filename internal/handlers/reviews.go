@@ -25,6 +25,13 @@ const reviewSelect = `
 	FROM reviews r
 	JOIN users u ON u.id = r.user_id`
 
+// reviewSortClauses maps the accepted ?sort= values for a cafe's reviews to ORDER BY clauses.
+var reviewSortClauses = map[string]string{
+	"newest":  "r.created_at DESC, r.id DESC",
+	"highest": "r.rating DESC, r.created_at DESC, r.id DESC",
+	"lowest":  "r.rating ASC, r.created_at DESC, r.id DESC",
+}
+
 type reviewRequest struct {
 	Rating int    `json:"rating"`
 	Body   string `json:"body"`
@@ -128,13 +135,30 @@ func requireReviewOwner(c *gin.Context, reviewID int) bool {
 	return true
 }
 
+// ListReviews supports ?sort= (newest, highest, lowest) and optional ?limit= and ?offset=.
+// Without limit, every review for the cafe is returned.
 func ListReviews(c *gin.Context) {
 	cafeID, ok := parseID(c, "id")
 	if !ok {
 		return
 	}
+	orderBy, ok := orderByParam(c, reviewSortClauses, "newest")
+	if !ok {
+		return
+	}
+	limit, offset, paged, ok := pageParams(c)
+	if !ok {
+		return
+	}
 
-	rows, err := database.DB.Query(reviewSelect+` WHERE r.cafe_id = $1 ORDER BY r.created_at DESC, r.id DESC`, cafeID)
+	total, err := countRows(`SELECT COUNT(*) FROM reviews WHERE cafe_id = $1`, cafeID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	query, args := appendPaging(reviewSelect+` WHERE r.cafe_id = $1 ORDER BY `+orderBy, []any{cafeID}, limit, offset, paged)
+	rows, err := database.DB.Query(query, args...)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -168,6 +192,7 @@ func ListReviews(c *gin.Context) {
 			reviews[i].Images = []models.ReviewImage{}
 		}
 	}
+	setTotalCount(c, total)
 	c.JSON(http.StatusOK, reviews)
 }
 
@@ -261,34 +286,16 @@ func DeleteReview(c *gin.Context) {
 
 	// Collect image filenames first so the files can be removed after the
 	// rows are deleted by the cascade.
-	rows, err := database.DB.Query(`SELECT filename FROM review_images WHERE review_id = $1`, reviewID)
+	filenames, err := imageFilenames(`SELECT filename FROM review_images WHERE review_id = $1`, reviewID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	var filenames []string
-	for rows.Next() {
-		var f string
-		if err := rows.Scan(&f); err != nil {
-			rows.Close()
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-		filenames = append(filenames, f)
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	rows.Close()
 
 	if _, err := database.DB.Exec(`DELETE FROM reviews WHERE id = $1`, reviewID); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	for _, f := range filenames {
-		_ = Uploads.Delete(f) // best effort; the review is already gone
-	}
+	removeImageFiles(filenames)
 	c.Status(http.StatusNoContent)
 }
