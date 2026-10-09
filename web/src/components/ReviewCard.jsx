@@ -18,32 +18,40 @@ export default function ReviewCard({ review, currentUserId, onDeleted }) {
   }
 
   return (
-    <article className="review-card">
-      <header className="review-header">
-        <strong>{review.author_name}</strong>
+    <article className="card mb-4 p-5">
+      <header className="flex flex-wrap items-center gap-3">
+        <strong className="font-semibold">{review.author_name}</strong>
         <Stars value={review.rating} />
-        <time dateTime={review.created_at}>{new Date(review.created_at).toLocaleDateString()}</time>
+        <time dateTime={review.created_at} className="ml-auto text-sm text-slate-500 dark:text-slate-400">
+          {new Date(review.created_at).toLocaleDateString()}
+        </time>
       </header>
-      <p className="review-body">{review.body}</p>
+
+      <p className="my-3 whitespace-pre-wrap leading-relaxed">{review.body}</p>
 
       {review.images?.length > 0 && (
-        <div className="review-images">
+        <div className="mt-3 flex flex-wrap gap-2.5">
           {review.images.map((img) => (
-            <a key={img.id} href={img.url} target="_blank" rel="noreferrer">
-              <img src={img.url} alt={`Photo by ${review.author_name}`} loading="lazy" />
+            <a key={img.id} href={img.url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl">
+              <img
+                src={img.url}
+                alt={`Photo by ${review.author_name}`}
+                loading="lazy"
+                className="h-32 w-32 border border-slate-200 object-cover transition duration-200 hover:scale-105 dark:border-slate-800"
+              />
             </a>
           ))}
         </div>
       )}
 
       {isOwner && (
-        <div className="review-actions">
-          <button type="button" className="danger" onClick={handleDelete}>
+        <div className="mt-3">
+          <button type="button" onClick={handleDelete} className="btn btn-danger px-3 py-1.5 text-sm">
             Delete
           </button>
         </div>
       )}
-      {error && <p className="error">{error}</p>}
+      {error && <p className="alert-error mt-3">{error}</p>}
     </article>
   )
 }

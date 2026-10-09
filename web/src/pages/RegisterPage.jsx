@@ -25,34 +25,44 @@ export default function RegisterPage() {
   }
 
   return (
-    <section className="narrow">
-      <h1>Sign up</h1>
-      <form onSubmit={handleSubmit} className="stacked-form">
-        <label>
+    <section className="card mx-auto mt-8 max-w-md p-8">
+      <h1 className="mb-6 text-2xl font-bold tracking-tight">Sign up</h1>
+      <form onSubmit={handleSubmit} className="grid gap-4">
+        <label className="label">
           Display name
-          <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={100} required />
+          <input
+            className="field"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            maxLength={100}
+            required
+          />
         </label>
-        <label>
+        <label className="label">
           Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <input type="email" className="field" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </label>
-        <label>
+        <label className="label">
           Password (at least 8 characters)
           <input
             type="password"
+            className="field"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             minLength={8}
             required
           />
         </label>
-        {error && <p className="error">{error}</p>}
-        <button type="submit" disabled={submitting}>
+        {error && <p className="alert-error">{error}</p>}
+        <button type="submit" disabled={submitting} className="btn mt-2">
           {submitting ? 'Creating account...' : 'Sign up'}
         </button>
       </form>
-      <p>
-        Already have an account? <Link to="/login">Log in</Link>
+      <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">
+        Already have an account?{' '}
+        <Link to="/login" className="font-semibold">
+          Log in
+        </Link>
       </p>
     </section>
   )
