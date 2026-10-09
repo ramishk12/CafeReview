@@ -4,5 +4,7 @@ uploads/
 bin/
 web/node_modules/
 web/dist/
+web/.next/
+web/next-env.d.ts
 .DS_Store
 /server
