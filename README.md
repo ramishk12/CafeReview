@@ -52,5 +52,11 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Writes need `A
 
 ## Tests
 ```bash
+# Backend (unit tests; database calls are mocked with sqlmock)
 go test ./...
+go vet ./...
+
+# Frontend (Vitest + Testing Library, jsdom)
+cd web
+npm test
 ```

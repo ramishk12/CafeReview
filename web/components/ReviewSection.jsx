@@ -12,6 +12,12 @@ const ORDERS = {
   highest: { label: 'Highest rated', compare: (a, b) => b.rating - a.rating || new Date(b.created_at) - new Date(a.created_at) },
   lowest: { label: 'Lowest rated', compare: (a, b) => a.rating - b.rating || new Date(b.created_at) - new Date(a.created_at) },
 }
+const PREVIEW_PHOTOS = 12
+
+// Maps a review's images to the shape PhotoLightbox expects.
+export function reviewPhotos(review) {
+  return (review.images || []).map((img) => ({ id: img.id, url: img.url, alt: `Photo by ${review.author_name}` }))
+}
 
 // Review list, sorting, photo gallery, and the review form for the signed-in user.
 export default function ReviewSection({ cafe, reviews }) {
@@ -23,14 +29,8 @@ export default function ReviewSection({ cafe, reviews }) {
   const sorted = useMemo(() => [...reviews].sort(ORDERS[order].compare), [reviews, order])
 
   // Every photo for this cafe, in review order, for the gallery and the lightbox.
-  const photos = useMemo(
-    () =>
-      sorted.flatMap((r) => (r.images || []).map((img) => ({ id: img.id, url: img.url, alt: `Photo by ${r.author_name}` }))),
-    [sorted],
-  )
+  const photos = useMemo(() => sorted.flatMap(reviewPhotos), [sorted])
 
-  const toPhotos = (review) =>
-    (review.images || []).map((img) => ({ id: img.id, url: img.url, alt: `Photo by ${review.author_name}` }))
   const openPhoto = (images, index) => setLightbox({ images, index })
   const setLightboxIndex = (index) => setLightbox((l) => (l ? { ...l, index } : l))
 
@@ -55,7 +55,7 @@ export default function ReviewSection({ cafe, reviews }) {
             Photos <span className="text-base font-medium text-slate-400">({photos.length})</span>
           </h2>
           <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
-            {photos.slice(0, 12).map((p, i) => (
+            {photos.slice(0, PREVIEW_PHOTOS).map((p, i) => (
               <li key={p.id}>
                 <button
                   type="button"
@@ -96,7 +96,7 @@ export default function ReviewSection({ cafe, reviews }) {
               <ReviewCard
                 review={review}
                 isOwner={user?.id === review.user_id}
-                onOpenPhoto={(index) => openPhoto(toPhotos(review), index)}
+                onOpenPhoto={(index) => openPhoto(reviewPhotos(review), index)}
               />
             </li>
           ))}
