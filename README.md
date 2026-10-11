@@ -30,7 +30,6 @@ BACKEND_URL=http://localhost:8080 npm run build && npm run start
 ```
 
 For a production build, run `npm run build` and then `npm run start`.
-
 ## API
 
 All endpoints are under `/api`. Errors return `{"error": "..."}`. Writes need `Authorization: Bearer <token>`, and admin routes need an admin token.
@@ -53,5 +52,11 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Writes need `A
 
 ## Tests
 ```bash
+# Backend (unit tests; database calls are mocked with sqlmock)
 go test ./...
+go vet ./...
+
+# Frontend (Vitest + Testing Library, jsdom)
+cd web
+npm test
 ```

@@ -1,8 +1,7 @@
 'use client'
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import * as api from '@/lib/api'
-import { AUTH_EXPIRED_EVENT, getToken, setToken } from '@/lib/api'
+import { AUTH_EXPIRED_EVENT, getToken, login as apiLogin, me, register as apiRegister, setToken } from '@/lib/api'
 import { useToast } from '@/context/ToastContext'
 
 const AuthContext = createContext(null)
@@ -18,8 +17,7 @@ export function AuthProvider({ children }) {
       setLoading(false)
       return
     }
-    api
-      .me()
+    me()
       .then(setUser)
       .catch(() => setToken(null))
       .finally(() => setLoading(false))
@@ -46,9 +44,8 @@ export function AuthProvider({ children }) {
       user,
       loading,
       isAdmin: user?.role === 'admin',
-      login: async (email, password) => saveSession(await api.login(email, password)),
-      register: async (email, password, displayName) =>
-        saveSession(await api.register(email, password, displayName)),
+      login: async (email, password) => saveSession(await apiLogin(email, password)),
+      register: async (email, password, displayName) => saveSession(await apiRegister(email, password, displayName)),
       logout: () => {
         setToken(null)
         setUser(null)

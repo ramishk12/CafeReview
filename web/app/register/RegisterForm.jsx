@@ -5,10 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
-
-function safeRedirect(from) {
-  return from && from.startsWith('/') && !from.startsWith('//') ? from : '/'
-}
+import { safeRedirect } from '@/lib/redirect'
 
 export default function RegisterForm() {
   const { register } = useAuth()

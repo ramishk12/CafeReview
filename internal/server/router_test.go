@@ -65,3 +65,34 @@ func TestCafeWritesRequireAdmin(t *testing.T) {
 		})
 	}
 }
+
+func TestPublicAndReviewRoutes(t *testing.T) {
+	auth.Secret = []byte("router-test-secret")
+	r := NewRouter(t.TempDir())
+
+	for _, path := range []string{"/api/health", "/api/cafes", "/api/cafes/:id", "/api/cafes/:id/reviews"} {
+		assert.True(t, hasRoute(r, http.MethodGet, path), "GET "+path)
+	}
+	assert.True(t, hasRoute(r, http.MethodPost, "/api/auth/register"))
+	assert.True(t, hasRoute(r, http.MethodPost, "/api/auth/login"))
+	assert.True(t, hasRoute(r, http.MethodPost, "/api/cafes/:id/reviews"))
+	assert.True(t, hasRoute(r, http.MethodPut, "/api/reviews/:id"))
+	assert.True(t, hasRoute(r, http.MethodPost, "/api/reviews/:id/images"))
+}
+
+func TestReviewWritesRequireAuth(t *testing.T) {
+	r := NewRouter(t.TempDir())
+
+	for _, tt := range []struct{ method, path string }{
+		{http.MethodPost, "/api/cafes/1/reviews"},
+		{http.MethodPut, "/api/reviews/1"},
+		{http.MethodDelete, "/api/reviews/1"},
+		{http.MethodPost, "/api/reviews/1/images"},
+	} {
+		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, httptest.NewRequest(tt.method, tt.path, nil))
+			assert.Equal(t, http.StatusUnauthorized, w.Code)
+		})
+	}
+}

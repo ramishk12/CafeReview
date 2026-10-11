@@ -5,11 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
-
-// Only allow in-app redirects after login (prevents open redirects via ?from=).
-function safeRedirect(from) {
-  return from && from.startsWith('/') && !from.startsWith('//') ? from : '/'
-}
+import { safeRedirect } from '@/lib/redirect'
 
 export default function LoginForm() {
   const { login } = useAuth()
