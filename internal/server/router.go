@@ -14,6 +14,7 @@ import (
 func NewRouter(uploadDir string) *gin.Engine {
 	r := gin.Default()
 	r.Use(apierror.RequestID())
+	r.Use(securityHeaders())
 
 	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
