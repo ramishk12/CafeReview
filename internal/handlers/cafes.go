@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"cafe-review/internal/apierror"
 	"cafe-review/internal/database"
 	"cafe-review/internal/models"
 
@@ -81,14 +82,14 @@ func ListCafes(c *gin.Context) {
 
 	total, err := countRows(`SELECT COUNT(*) FROM cafes c`+where, args...)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 
 	query, args := appendPaging(cafeSelect+where+` GROUP BY c.id ORDER BY `+orderBy, args, limit, offset, paged)
 	rows, err := database.DB.Query(query, args...)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	defer rows.Close()
@@ -97,13 +98,13 @@ func ListCafes(c *gin.Context) {
 	for rows.Next() {
 		cafe, err := scanCafe(rows)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			apierror.Internal(c, err)
 			return
 		}
 		cafes = append(cafes, cafe)
 	}
 	if err := rows.Err(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	setTotalCount(c, total)
@@ -122,7 +123,7 @@ func GetCafe(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, cafe)
@@ -164,14 +165,14 @@ func CreateCafe(c *gin.Context) {
 		req.Name, req.Address, req.Description,
 	).Scan(&id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 
 	// Return the full record, including DB-generated timestamp.
 	cafe, err := fetchCafe(id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, cafe)
@@ -199,12 +200,12 @@ func UpdateCafe(c *gin.Context) {
 		req.Name, req.Address, req.Description, id,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	affected, err := res.RowsAffected()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	if affected == 0 {
@@ -214,7 +215,7 @@ func UpdateCafe(c *gin.Context) {
 
 	cafe, err := fetchCafe(id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, cafe)
@@ -234,18 +235,18 @@ func DeleteCafe(c *gin.Context) {
 		JOIN reviews r ON r.id = ri.review_id
 		WHERE r.cafe_id = $1`, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 
 	res, err := database.DB.Exec(`DELETE FROM cafes WHERE id = $1`, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	affected, err := res.RowsAffected()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	if affected == 0 {
