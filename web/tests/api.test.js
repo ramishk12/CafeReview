@@ -72,10 +72,56 @@ describe('api client', () => {
     expect(err.status).toBe(409)
   })
 
-  it('falls back to a generic message when the error body is not JSON', async () => {
+  it('shows a plain message for 502/503/504 when the body is not JSON', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('<html>oops</html>', { status: 502 })))
     const err = await api.me().catch((e) => e)
-    expect(err.message).toBe('Request failed (502)')
+    expect(err.message).toBe('The service is temporarily unavailable. Please try again in a moment.')
+    expect(err.status).toBe(502)
+  })
+
+  it('never shows technical text such as "Request failed (status)"', async () => {
+    mockFetch(418, undefined)
+    const err = await api.me().catch((e) => e)
+    expect(err.message).not.toMatch(/Request failed/)
+    expect(err.message).toBe('We could not complete that request. Please check the details and try again.')
+  })
+
+  it('shows a reference for server errors and ignores the server text', async () => {
+    mockFetch(500, { error: 'Something went wrong', request_id: 'a1b2c3d4e5f60718' })
+    const err = await api.createCafe({ name: 'x' }).catch((e) => e)
+    expect(err.message).toBe('Something went wrong on our end. Please try again. (Reference: a1b2c3d4e5f60718)')
+    expect(err.requestId).toBe('a1b2c3d4e5f60718')
+    expect(err.status).toBe(500)
+  })
+
+  it('takes the reference from the X-Request-ID header when the body has none', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      new Response('oops', { status: 500, headers: { 'X-Request-ID': 'hdr-42' } }),
+    ))
+    const err = await api.me().catch((e) => e)
+    expect(err.requestId).toBe('hdr-42')
+    expect(err.message).toContain('(Reference: hdr-42)')
+  })
+
+  it('shows a connection message when the request never reaches the server', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+    const err = await api.me().catch((e) => e)
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.message).toBe(api.NETWORK_ERROR_MESSAGE)
+    expect(err.message).not.toMatch(/Failed to fetch/)
+  })
+
+  it('keeps validation messages from 4xx responses', async () => {
+    mockFetch(400, { error: 'Rating must be between 1 and 5' })
+    const err = await api.createReview(1, { rating: 9, body: 'x' }).catch((e) => e)
+    expect(err.message).toBe('Rating must be between 1 and 5')
+    expect(err.requestId).toBe('')
+  })
+
+  it('uses a plain message for 404 without a body', async () => {
+    mockFetch(404, undefined)
+    const err = await api.me().catch((e) => e)
+    expect(err.message).toBe("We couldn't find what you were looking for.")
   })
 
   it('clears the token and announces expiry when a signed-in request gets 401', async () => {

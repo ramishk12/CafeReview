@@ -10,9 +10,9 @@ export default function ErrorPage({ error, reset }) {
 
   return (
     <div className="card mx-auto mt-12 max-w-md p-8 text-center">
-      <h1 className="text-2xl font-bold tracking-tight">Something went wrong</h1>
+      <h1 className="text-2xl font-bold tracking-tight">We&apos;re having trouble loading this page</h1>
       <p className="mt-2 text-slate-500 dark:text-slate-400">
-        We couldn&apos;t load this page. Check that the API is running, then try again.
+        Please try again in a moment. If the problem continues, let us know.
       </p>
       <button type="button" onClick={reset} className="btn mt-6">
         Try again

@@ -12,12 +12,28 @@ export function setToken(token) {
   else window.localStorage.removeItem(TOKEN_KEY)
 }
 
+// ApiError.message is always safe to show to a user. requestId is set for server errors
+// and matches the ID in the server logs, so support can find the failure.
 export class ApiError extends Error {
-  constructor(message, status) {
+  constructor(message, status, requestId = '') {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.requestId = requestId
   }
+}
+
+export const NETWORK_ERROR_MESSAGE = "We couldn't reach the server. Check your connection and try again."
+
+// Plain-language text for an HTTP status when the server gave no usable message.
+export function fallbackMessage(status) {
+  if (status === 502 || status === 503 || status === 504) {
+    return 'The service is temporarily unavailable. Please try again in a moment.'
+  }
+  if (status >= 500) return 'Something went wrong on our end. Please try again.'
+  if (status === 404) return "We couldn't find what you were looking for."
+  if (status === 403) return "You don't have permission to do that."
+  return 'We could not complete that request. Please check the details and try again.'
 }
 
 async function request(path, { method = 'GET', body, form } = {}) {
@@ -33,7 +49,12 @@ async function request(path, { method = 'GET', body, form } = {}) {
     payload = JSON.stringify(body)
   }
 
-  const res = await fetch(`/api${path}`, { method, headers, body: payload })
+  let res
+  try {
+    res = await fetch(`/api${path}`, { method, headers, body: payload })
+  } catch {
+    throw new ApiError(NETWORK_ERROR_MESSAGE, 0)
+  }
   if (res.status === 204) return null
 
   const data = await res.json().catch(() => ({}))
@@ -43,7 +64,15 @@ async function request(path, { method = 'GET', body, form } = {}) {
       setToken(null)
       window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
     }
-    throw new ApiError(data.error || `Request failed (${res.status})`, res.status)
+
+    if (res.status >= 500) {
+      // Server messages for 5xx are not shown; the reference lets support find the logs.
+      const requestId = data.request_id || res.headers.get('X-Request-ID') || ''
+      const message = requestId ? `${fallbackMessage(res.status)} (Reference: ${requestId})` : fallbackMessage(res.status)
+      throw new ApiError(message, res.status, requestId)
+    }
+    // 4xx messages come from validation and are written to be read by users.
+    throw new ApiError(data.error || fallbackMessage(res.status), res.status)
   }
   return data
 }
