@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 
+	"cafe-review/internal/apierror"
 	"cafe-review/internal/database"
 	"cafe-review/internal/models"
 
@@ -53,7 +54,7 @@ func UploadReviewImage(c *gin.Context) {
 
 	f, err := fh.Open()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	defer f.Close()
@@ -62,7 +63,7 @@ func UploadReviewImage(c *gin.Context) {
 	head := make([]byte, 512)
 	n, err := io.ReadFull(f, head)
 	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	ext, allowed := allowedImageTypes[http.DetectContentType(head[:n])]
@@ -71,13 +72,13 @@ func UploadReviewImage(c *gin.Context) {
 		return
 	}
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 
 	filename, err := Uploads.Save(ext, f)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not save image"})
+		apierror.Internal(c, err)
 		return
 	}
 
@@ -88,7 +89,7 @@ func UploadReviewImage(c *gin.Context) {
 	).Scan(&img.ID, &img.CreatedAt)
 	if err != nil {
 		_ = Uploads.Delete(filename)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	img.ReviewID = reviewID
@@ -120,7 +121,7 @@ func DeleteReviewImage(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 

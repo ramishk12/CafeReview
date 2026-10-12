@@ -7,6 +7,7 @@ import (
 	"net/mail"
 	"strings"
 
+	"cafe-review/internal/apierror"
 	"cafe-review/internal/database"
 	"cafe-review/internal/models"
 
@@ -65,7 +66,7 @@ func Register(c *gin.Context) {
 
 	hash, err := HashPassword(req.Password)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create account"})
+		apierror.Internal(c, err)
 		return
 	}
 
@@ -81,13 +82,13 @@ func Register(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 
 	token, err := GenerateToken(user.ID, user.Role)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create session"})
+		apierror.Internal(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, authResponse{Token: token, User: user})
@@ -109,13 +110,13 @@ func Login(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 
 	token, err := GenerateToken(user.ID, user.Role)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create session"})
+		apierror.Internal(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, authResponse{Token: token, User: user})
@@ -130,7 +131,7 @@ func Me(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, user)

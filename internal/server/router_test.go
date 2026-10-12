@@ -96,3 +96,12 @@ func TestReviewWritesRequireAuth(t *testing.T) {
 		})
 	}
 }
+
+func TestEveryResponseHasRequestID(t *testing.T) {
+	r := NewRouter(t.TempDir())
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/health", nil))
+
+	assert.NotEmpty(t, w.Header().Get("X-Request-ID"))
+}

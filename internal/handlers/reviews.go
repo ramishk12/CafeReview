@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"cafe-review/internal/apierror"
 	"cafe-review/internal/auth"
 	"cafe-review/internal/database"
 	"cafe-review/internal/models"
@@ -125,7 +126,7 @@ func requireReviewOwner(c *gin.Context, reviewID int) bool {
 		return false
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return false
 	}
 	if ownerID != auth.CurrentUserID(c) {
@@ -153,14 +154,14 @@ func ListReviews(c *gin.Context) {
 
 	total, err := countRows(`SELECT COUNT(*) FROM reviews WHERE cafe_id = $1`, cafeID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 
 	query, args := appendPaging(reviewSelect+` WHERE r.cafe_id = $1 ORDER BY `+orderBy, []any{cafeID}, limit, offset, paged)
 	rows, err := database.DB.Query(query, args...)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	defer rows.Close()
@@ -170,20 +171,20 @@ func ListReviews(c *gin.Context) {
 	for rows.Next() {
 		r, err := scanReview(rows)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			apierror.Internal(c, err)
 			return
 		}
 		reviews = append(reviews, r)
 		ids = append(ids, r.ID)
 	}
 	if err := rows.Err(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 
 	images, err := loadImagesForReviews(ids)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	for i := range reviews {
@@ -226,13 +227,13 @@ func CreateReview(c *gin.Context) {
 		return
 	}
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 
 	review, err := fetchReview(id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, review)
@@ -263,13 +264,13 @@ func UpdateReview(c *gin.Context) {
 		req.Rating, req.Body, reviewID,
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 
 	review, err := fetchReview(reviewID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, review)
@@ -288,12 +289,12 @@ func DeleteReview(c *gin.Context) {
 	// rows are deleted by the cascade.
 	filenames, err := imageFilenames(`SELECT filename FROM review_images WHERE review_id = $1`, reviewID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 
 	if _, err := database.DB.Exec(`DELETE FROM reviews WHERE id = $1`, reviewID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		apierror.Internal(c, err)
 		return
 	}
 	removeImageFiles(filenames)

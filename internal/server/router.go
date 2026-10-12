@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 
+	"cafe-review/internal/apierror"
 	"cafe-review/internal/auth"
 	"cafe-review/internal/handlers"
 
@@ -12,6 +13,7 @@ import (
 // NewRouter builds the HTTP router. uploadDir is served at /uploads.
 func NewRouter(uploadDir string) *gin.Engine {
 	r := gin.Default()
+	r.Use(apierror.RequestID())
 
 	r.GET("/api/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
