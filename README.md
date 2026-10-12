@@ -8,11 +8,14 @@ Cafe reviews with user accounts and picture uploads.
 
 ## Setup
 ```bash
-# Database (seeds sample cafes, users, and reviews on first start)
+# Database (seeds sample cafes on first start; create an admin with cmd/createadmin)
 docker compose up -d
 
 # Re-seed from scratch (deletes all database data)
 docker compose down -v && docker compose up -d
+
+# Admin account (set ADMIN_EMAIL and ADMIN_PASSWORD in .env first)
+go run ./cmd/createadmin
 
 # Backend (port 8080)
 go run ./cmd/server

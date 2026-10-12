@@ -2,11 +2,7 @@
 -- To re-run it: docker compose down -v && docker compose up -d
 --
 -- The schema mirrors internal/database/migrate.go. Keep them in sync.
--- Seed passwords are for local development only:
---   admin@example.com / changeme123   (admin)
---   demo@example.com  / password123   (regular user)
-
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+-- Seeds only sample cafes. Create accounts with cmd/createadmin or by registering.
 
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
@@ -46,24 +42,9 @@ CREATE TABLE IF NOT EXISTS review_images (
 CREATE INDEX IF NOT EXISTS idx_reviews_cafe_id ON reviews(cafe_id);
 CREATE INDEX IF NOT EXISTS idx_review_images_review_id ON review_images(review_id);
 
--- Seed data
+-- Seed data: sample cafes only. No accounts or reviews are created.
 
 INSERT INTO cafes (name, address, description) VALUES
     ('Bean There', '12 Market St', 'Single-origin pour-overs and a quiet back room.'),
     ('Morning Crumb', '48 Elm Ave', 'Fresh pastries baked before sunrise.'),
     ('Corner Roast', '7 Harbor Rd', 'Espresso bar with a good selection of cold brew.');
-
--- pgcrypto's bcrypt ($2a$) hashes are accepted by Go's bcrypt.CompareHashAndPassword.
-INSERT INTO users (email, display_name, password_hash, role) VALUES
-    ('admin@example.com', 'Admin', crypt('changeme123', gen_salt('bf')), 'admin'),
-    ('demo@example.com', 'Demo User', crypt('password123', gen_salt('bf')), 'user');
-
-INSERT INTO reviews (cafe_id, user_id, rating, body)
-SELECT c.id, u.id, 5, 'Excellent pour-over and the back room is great for working.'
-FROM cafes c, users u
-WHERE c.name = 'Bean There' AND u.email = 'demo@example.com';
-
-INSERT INTO reviews (cafe_id, user_id, rating, body)
-SELECT c.id, u.id, 4, 'Best croissants in the area. Gets busy before 9am.'
-FROM cafes c, users u
-WHERE c.name = 'Morning Crumb' AND u.email = 'demo@example.com';
