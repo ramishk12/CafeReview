@@ -21,10 +21,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if cfg.JWTSecret == "" {
-		log.Fatal("JWT_SECRET must be set")
-	}
-
 	if err := database.Connect(database.Config{
 		Host:     cfg.DBHost,
 		Port:     cfg.DBPort,
