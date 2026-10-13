@@ -204,6 +204,7 @@ func TestMe(t *testing.T) {
 }
 
 func TestLoginAccountLockout(t *testing.T) {
+	useSecret(t, "test-secret-for-lockout")
 	previous := LoginGuard
 	LoginGuard = ratelimit.NewAccountGuard(2, time.Hour, 15*time.Minute)
 	t.Cleanup(func() { LoginGuard = previous })
@@ -234,6 +235,7 @@ func TestLoginAccountLockout(t *testing.T) {
 }
 
 func TestLoginSuccessClearsFailures(t *testing.T) {
+	useSecret(t, "test-secret-for-lockout")
 	previous := LoginGuard
 	LoginGuard = ratelimit.NewAccountGuard(2, time.Hour, 15*time.Minute)
 	t.Cleanup(func() { LoginGuard = previous })

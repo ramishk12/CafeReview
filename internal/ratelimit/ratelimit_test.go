@@ -69,7 +69,9 @@ func TestAccountGuardLocksAfterMaxFailures(t *testing.T) {
 	g.Fail("a@example.com")
 	locked, remaining := g.Blocked("a@example.com")
 	assert.True(t, locked, "the third failure should lock the account")
-	assert.Equal(t, 15*time.Minute, remaining)
+	// remaining is the lockout minus the small time since Fail, so bound it.
+	assert.Greater(t, remaining, 14*time.Minute)
+	assert.LessOrEqual(t, remaining, 15*time.Minute)
 
 	assert.False(t, blocked(g, "other@example.com"), "other accounts are unaffected")
 }
