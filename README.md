@@ -55,6 +55,17 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Writes need `A
 
 **Rate limits:** login allows 5 requests per minute per IP, and an account is locked for 15 minutes after 10 failed logins within an hour. Registration allows 5 per hour per IP. Over the limit returns `429` with a `Retry-After` header. The client IP is taken from the direct connection unless `TRUSTED_PROXIES` lists the proxies to trust.
 
+## Production checklist
+Before running anywhere other than your machine:
+
+- Set a strong `JWT_SECRET` (`openssl rand -base64 32`). The server refuses to start without one.
+- Set `DB_PASSWORD`. The server and `docker compose` both refuse to start without it, and the repo ships no default.
+- Change any credentials that came from an example. Never keep the defaults.
+- Set `TRUSTED_PROXIES` to the address of the proxy or frontend server that forwards requests, so the client IP is correct. Leave it empty only when the API is reached directly.
+- Keep the database off the public network. `docker-compose.yml` binds it to `127.0.0.1`; keep that or place it on a private network.
+- Do not load demo or seed data in production. `db/init` seeds sample cafes only; the sample accounts have been removed.
+- Serve over HTTPS, and see the follow-up to enforce the Content-Security-Policy (#62).
+
 ## Tests
 ```bash
 # Backend (unit tests; database calls are mocked with sqlmock)

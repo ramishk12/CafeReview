@@ -32,6 +32,9 @@ func main() {
 	if email == "" || len(password) < 8 {
 		log.Fatal("ADMIN_EMAIL and ADMIN_PASSWORD (min 8 characters) must be set")
 	}
+	if strings.HasPrefix(password, "replace-me") {
+		log.Fatal("ADMIN_PASSWORD is still the placeholder from .env.example; set a strong password")
+	}
 
 	cfg, err := config.Load()
 	if err != nil {

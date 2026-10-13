@@ -8,8 +8,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// validSecret is 32 bytes, the minimum accepted length.
+// validSecret is 32 bytes, the minimum accepted JWT length.
 const validSecret = "0123456789abcdef0123456789abcdef"
+
+const validDBPassword = "test-db-password"
 
 func clearEnv(t *testing.T) {
 	t.Helper()
@@ -18,9 +20,16 @@ func clearEnv(t *testing.T) {
 	}
 }
 
+// setValid sets the two required variables so Load succeeds.
+func setValid(t *testing.T) {
+	t.Helper()
+	t.Setenv("JWT_SECRET", validSecret)
+	t.Setenv("DB_PASSWORD", validDBPassword)
+}
+
 func TestLoadDefaults(t *testing.T) {
 	clearEnv(t)
-	t.Setenv("JWT_SECRET", validSecret)
+	setValid(t)
 
 	cfg, err := Load()
 	require.NoError(t, err)
@@ -34,9 +43,9 @@ func TestLoadDefaults(t *testing.T) {
 
 func TestLoadReadsEnvironment(t *testing.T) {
 	clearEnv(t)
+	setValid(t)
 	t.Setenv("PORT", "9000")
 	t.Setenv("DB_PORT", "6543")
-	t.Setenv("JWT_SECRET", validSecret)
 
 	cfg, err := Load()
 	require.NoError(t, err)
@@ -46,7 +55,7 @@ func TestLoadReadsEnvironment(t *testing.T) {
 
 func TestLoadRejectsInvalidDBPort(t *testing.T) {
 	clearEnv(t)
-	t.Setenv("JWT_SECRET", validSecret)
+	setValid(t)
 	t.Setenv("DB_PORT", "not-a-port")
 
 	_, err := Load()
@@ -67,12 +76,35 @@ func TestLoadRejectsWeakJWTSecret(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			clearEnv(t)
+			t.Setenv("DB_PASSWORD", validDBPassword)
 			t.Setenv("JWT_SECRET", tt.secret)
 
 			_, err := Load()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.contains)
 			assert.Contains(t, err.Error(), "openssl rand -base64 32", "error should say how to fix it")
+		})
+	}
+}
+
+func TestLoadRejectsMissingDBPassword(t *testing.T) {
+	tests := []struct {
+		name     string
+		password string
+		contains string
+	}{
+		{"missing", "", "DB_PASSWORD must be set"},
+		{"placeholder from .env.example", "replace-me-with-a-strong-password", "placeholder"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clearEnv(t)
+			t.Setenv("JWT_SECRET", validSecret)
+			t.Setenv("DB_PASSWORD", tt.password)
+
+			_, err := Load()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.contains)
 		})
 	}
 }
@@ -89,6 +121,12 @@ func TestValidateJWTSecretCountsBytesNotCharacters(t *testing.T) {
 	assert.Error(t, validateJWTSecret(strings.Repeat("é", 15)))
 }
 
+func TestValidateDBPassword(t *testing.T) {
+	assert.NoError(t, validateDBPassword("a-strong-password"))
+	assert.Error(t, validateDBPassword(""))
+	assert.Error(t, validateDBPassword("replace-me-with-a-strong-password"))
+}
+
 func TestSplitList(t *testing.T) {
 	assert.Nil(t, splitList(""))
 	assert.Nil(t, splitList("   "))
@@ -98,7 +136,7 @@ func TestSplitList(t *testing.T) {
 
 func TestLoadReadsTrustedProxies(t *testing.T) {
 	clearEnv(t)
-	t.Setenv("JWT_SECRET", validSecret)
+	setValid(t)
 	t.Setenv("TRUSTED_PROXIES", "10.0.0.1, 10.0.0.2")
 
 	cfg, err := Load()
@@ -108,7 +146,7 @@ func TestLoadReadsTrustedProxies(t *testing.T) {
 
 func TestLoadTrustedProxiesEmptyByDefault(t *testing.T) {
 	clearEnv(t)
-	t.Setenv("JWT_SECRET", validSecret)
+	setValid(t)
 
 	cfg, err := Load()
 	require.NoError(t, err)
