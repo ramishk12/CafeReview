@@ -20,6 +20,9 @@ const (
 	CSRFCookie = "cafe_csrf"
 
 	sessionTTL = 30 * 24 * time.Hour
+	// sessionSlideInterval is how often an active session's expiry is pushed
+	// forward, so the database is not written on every request.
+	sessionSlideInterval = time.Hour
 )
 
 // CookieSecure sets the Secure flag on the session and CSRF cookies. main sets it
@@ -30,6 +33,7 @@ type session struct {
 	UserID    int
 	Role      string
 	CSRFToken string
+	ExpiresAt time.Time
 }
 
 // newToken returns a random, URL-safe token.
@@ -73,12 +77,25 @@ func createSession(userID int) (token, csrf string, err error) {
 func lookupSession(token string) (session, error) {
 	var s session
 	err := database.DB.QueryRow(
-		`SELECT s.user_id, s.csrf_token, u.role
+		`SELECT s.user_id, s.csrf_token, s.expires_at, u.role
 		 FROM sessions s JOIN users u ON u.id = s.user_id
 		 WHERE s.token_hash = $1 AND s.expires_at > (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')`,
 		hashToken(token),
-	).Scan(&s.UserID, &s.CSRFToken, &s.Role)
+	).Scan(&s.UserID, &s.CSRFToken, &s.ExpiresAt, &s.Role)
 	return s, err
+}
+
+// shouldExtend reports whether a session's expiry should be pushed forward.
+// Sessions slide at most once per sessionSlideInterval, so an active session
+// stays alive and an idle one expires after the full TTL.
+func shouldExtend(expiresAt, now time.Time) bool {
+	return !expiresAt.After(now.Add(sessionTTL - sessionSlideInterval))
+}
+
+// extendSession pushes a session's expiry forward.
+func extendSession(token string, expiresAt time.Time) error {
+	_, err := database.DB.Exec(`UPDATE sessions SET expires_at = $1 WHERE token_hash = $2`, expiresAt, hashToken(token))
+	return err
 }
 
 // deleteSession removes the session for the given raw token.

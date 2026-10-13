@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"time"
 
 	"cafe-review/internal/apierror"
 	"cafe-review/internal/models"
@@ -49,6 +50,17 @@ func RequireAuth() gin.HandlerFunc {
 			apierror.Internal(c, err)
 			return
 		}
+		// Sliding expiration: push the expiry forward when it is due, and refresh
+		// the cookies so the browser keeps them for the new expiry.
+		if now := time.Now().UTC(); shouldExtend(sess.ExpiresAt, now) {
+			expires := now.Add(sessionTTL)
+			if err := extendSession(token, expires); err != nil {
+				apierror.Internal(c, err)
+				return
+			}
+			setSessionCookies(c, token, sess.CSRFToken)
+		}
+
 		c.Set(ctxUserID, sess.UserID)
 		c.Set(ctxRole, sess.Role)
 		c.Set(ctxCSRF, sess.CSRFToken)

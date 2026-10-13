@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
@@ -58,14 +59,16 @@ func TestCreateSessionStoresOnlyTheHash(t *testing.T) {
 func TestLookupSession(t *testing.T) {
 	t.Run("Returns the session and role", func(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
+			expires := time.Now().UTC().Add(sessionTTL)
 			m.ExpectQuery(`FROM sessions s JOIN users u`).WithArgs(hashToken("tok")).
-				WillReturnRows(sqlmock.NewRows([]string{"user_id", "csrf_token", "role"}).AddRow(7, "csrf-1", "admin"))
+				WillReturnRows(sqlmock.NewRows([]string{"user_id", "csrf_token", "expires_at", "role"}).AddRow(7, "csrf-1", expires, "admin"))
 
 			s, err := lookupSession("tok")
 			require.NoError(t, err)
 			assert.Equal(t, 7, s.UserID)
 			assert.Equal(t, "csrf-1", s.CSRFToken)
 			assert.Equal(t, "admin", s.Role)
+			assert.WithinDuration(t, expires, s.ExpiresAt, time.Second)
 		})
 	})
 
@@ -132,7 +135,8 @@ func TestRequireAuth(t *testing.T) {
 	t.Run("Accepts a valid session and sets the context", func(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
 			m.ExpectQuery(`FROM sessions`).WithArgs(hashToken("good")).
-				WillReturnRows(sqlmock.NewRows([]string{"user_id", "csrf_token", "role"}).AddRow(7, "csrf-1", "user"))
+				WillReturnRows(sqlmock.NewRows([]string{"user_id", "csrf_token", "expires_at", "role"}).
+					AddRow(7, "csrf-1", time.Now().UTC().Add(sessionTTL), "user"))
 
 			r := gin.New()
 			h, out := contextRecorder()
@@ -217,4 +221,59 @@ func assertHasSessionCookie(t *testing.T, w *httptest.ResponseRecorder) {
 		}
 	}
 	t.Fatal("expected a session cookie to be set")
+}
+
+func TestShouldExtend(t *testing.T) {
+	now := time.Now().UTC()
+	assert.False(t, shouldExtend(now.Add(sessionTTL), now), "a fresh session is not extended yet")
+	assert.False(t, shouldExtend(now.Add(sessionTTL-sessionSlideInterval+time.Minute), now), "not due yet")
+	assert.True(t, shouldExtend(now.Add(sessionTTL-sessionSlideInterval), now), "due at the slide interval")
+	assert.True(t, shouldExtend(now.Add(sessionTTL-sessionSlideInterval-time.Hour), now), "overdue")
+	assert.True(t, shouldExtend(now.Add(-time.Minute), now), "already past")
+}
+
+func TestRequireAuthSlidesExpiration(t *testing.T) {
+	withMockDB(t, func(m sqlmock.Sqlmock) {
+		// The stored expiry is older than the slide interval, so it should be pushed forward.
+		m.ExpectQuery(`FROM sessions`).WithArgs(hashToken("good")).
+			WillReturnRows(sqlmock.NewRows([]string{"user_id", "csrf_token", "expires_at", "role"}).
+				AddRow(7, "csrf-1", time.Now().UTC().Add(sessionTTL-sessionSlideInterval-time.Hour), "user"))
+		m.ExpectExec(`UPDATE sessions SET expires_at = \$1 WHERE token_hash = \$2`).
+			WithArgs(sqlmock.AnyArg(), hashToken("good")).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		r := gin.New()
+		h, _ := contextRecorder()
+		r.GET("/x", RequireAuth(), h)
+
+		req := httptest.NewRequest(http.MethodGet, "/x", nil)
+		req.AddCookie(&http.Cookie{Name: SessionCookie, Value: "good"})
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.NotEmpty(t, w.Result().Cookies(), "the cookie should be refreshed with the new expiry")
+		assert.NoError(t, m.ExpectationsWereMet())
+	})
+}
+
+func TestRequireAuthDoesNotSlideFreshSession(t *testing.T) {
+	withMockDB(t, func(m sqlmock.Sqlmock) {
+		// A fresh session is not due, so no UPDATE should happen.
+		m.ExpectQuery(`FROM sessions`).WithArgs(hashToken("good")).
+			WillReturnRows(sqlmock.NewRows([]string{"user_id", "csrf_token", "expires_at", "role"}).
+				AddRow(7, "csrf-1", time.Now().UTC().Add(sessionTTL), "user"))
+
+		r := gin.New()
+		h, _ := contextRecorder()
+		r.GET("/x", RequireAuth(), h)
+
+		req := httptest.NewRequest(http.MethodGet, "/x", nil)
+		req.AddCookie(&http.Cookie{Name: SessionCookie, Value: "good"})
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.NoError(t, m.ExpectationsWereMet(), "no UPDATE expected for a fresh session")
+	})
 }
