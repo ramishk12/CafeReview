@@ -2,8 +2,10 @@ package main
 
 import (
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -12,6 +14,7 @@ import (
 	"cafe-review/internal/config"
 	"cafe-review/internal/database"
 	"cafe-review/internal/handlers"
+	"cafe-review/internal/mail"
 	"cafe-review/internal/server"
 	"cafe-review/internal/storage"
 )
@@ -42,6 +45,18 @@ func main() {
 	}
 
 	auth.CookieSecure = cfg.CookieSecure
+	auth.AppBaseURL = cfg.AppBaseURL
+	if cfg.SMTPHost == "" {
+		auth.Mailer = mail.Log{}
+		log.Println("SMTP_HOST is empty; emails will be written to the log")
+	} else {
+		auth.Mailer = mail.SMTP{
+			Addr:     net.JoinHostPort(cfg.SMTPHost, strconv.Itoa(cfg.SMTPPort)),
+			From:     cfg.MailFrom,
+			Username: cfg.SMTPUser,
+			Password: cfg.SMTPPassword,
+		}
+	}
 
 	uploads, err := storage.NewLocal(cfg.UploadDir, "/uploads")
 	if err != nil {

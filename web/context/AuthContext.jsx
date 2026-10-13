@@ -47,11 +47,8 @@ export function AuthProvider({ children }) {
         setUser(next)
         return next
       },
-      register: async (email, password, displayName) => {
-        const next = await apiRegister(email, password, displayName)
-        setUser(next)
-        return next
-      },
+      // Registration no longer signs the user in; they must confirm their email first.
+      register: (email, password, displayName) => apiRegister(email, password, displayName),
       logout: async () => {
         // Best effort: clear the session on the server, then locally.
         try {

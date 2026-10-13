@@ -1,22 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
-import { useToast } from '@/context/ToastContext'
-import { safeRedirect } from '@/lib/redirect'
+import { resendVerification } from '@/lib/api'
 
 export default function RegisterForm() {
   const { register } = useAuth()
-  const toast = useToast()
-  const router = useRouter()
-  const searchParams = useSearchParams()
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [sent, setSent] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -24,12 +20,36 @@ export default function RegisterForm() {
     setSubmitting(true)
     try {
       await register(email, password, displayName)
-      toast.show('Account created. Welcome!')
-      router.replace(safeRedirect(searchParams.get('from')))
+      setSent(true)
     } catch (err) {
       setError(err.message)
       setSubmitting(false)
     }
+  }
+
+  if (sent) {
+    return (
+      <section className="card mx-auto mt-8 max-w-md p-8 text-center">
+        <h1 className="mb-2 text-2xl font-bold tracking-tight">Check your inbox</h1>
+        <p className="text-slate-500 dark:text-slate-400">
+          We&apos;ve sent a confirmation link to <span className="font-medium">{email}</span>. Open it to activate your
+          account.
+        </p>
+        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+          Didn&apos;t get it? Check your spam folder, or{' '}
+          <button type="button" className="font-semibold" onClick={() => resendVerification(email).catch(() => {})}>
+            resend the email
+          </button>
+          .
+        </p>
+        <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">
+          Already confirmed?{' '}
+          <Link href="/login" className="font-semibold">
+            Log in
+          </Link>
+        </p>
+      </section>
+    )
   }
 
   return (

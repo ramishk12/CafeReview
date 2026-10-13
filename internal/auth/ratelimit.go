@@ -14,6 +14,8 @@ var (
 	LoginLimiter = ratelimit.NewKeyed(5, time.Minute)
 	// RegisterLimiter allows 5 registrations per hour per IP.
 	RegisterLimiter = ratelimit.NewKeyed(5, time.Hour)
+	// ResendLimiter allows 5 verification resends per hour per IP.
+	ResendLimiter = ratelimit.NewKeyed(5, time.Hour)
 	// LoginGuard locks an account for 15 minutes after 10 failed logins within an hour.
 	LoginGuard = ratelimit.NewAccountGuard(10, time.Hour, 15*time.Minute)
 )

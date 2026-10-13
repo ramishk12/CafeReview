@@ -20,6 +20,9 @@ go run ./cmd/createadmin
 # Backend (port 8080)
 go run ./cmd/server
 
+# Mailpit (verification emails; web UI at http://localhost:8025) is started by docker compose.
+# If SMTP_HOST is empty, emails are written to the server log instead.
+
 # Frontend (port 3000; /api and /uploads are proxied to the backend)
 cd web
 npm install
@@ -39,6 +42,11 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Signing in set
 
 | Method | Path | Notes |
 | --- | --- | --- |
+| POST | `/auth/register` | Creates an unverified account and emails a confirmation link. Response is the same for a new and an existing email |
+| GET | `/auth/verify` | Query: `token`. Confirms an email address |
+| POST | `/auth/verify/resend` | Body: `email`. Sends a new link if needed; response is always the same |
+| POST | `/auth/login` | Blocked with `403` until the email is confirmed |
+| POST | `/auth/logout` | Deletes the session |
 | GET | `/cafes` | Query: `q` (search name or address, max 100 chars), `sort` (`name`, `rating`, `reviews`, `newest`; default `name`), `limit` (1-100), `offset` |
 | GET | `/cafes/:id` | |
 | POST | `/cafes` | Admin |
@@ -64,6 +72,7 @@ Before running anywhere other than your machine:
 - Set `TRUSTED_PROXIES` to the address of the proxy or frontend server that forwards requests, so the client IP is correct. Leave it empty only when the API is reached directly.
 - Keep the database off the public network. `docker-compose.yml` binds it to `127.0.0.1`; keep that or place it on a private network.
 - Do not load demo or seed data in production. `db/init` seeds sample cafes only; the sample accounts have been removed.
+- Set `SMTP_HOST` and related variables to a real provider (Mailpit is local only), and set `APP_BASE_URL` to the public frontend origin so confirmation links are correct. Verification email needs a sending domain with SPF, DKIM, and DMARC to reach inboxes.
 - Serve over HTTPS, and see the follow-up to enforce the Content-Security-Policy (#62).
 
 ## Tests

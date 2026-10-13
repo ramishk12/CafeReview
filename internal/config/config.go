@@ -27,6 +27,15 @@ type Config struct {
 	// CookieSecure sets the Secure flag on session cookies. Defaults to true.
 	// Set COOKIE_SECURE=false for local http development.
 	CookieSecure bool
+
+	// Email settings. When SMTPHost is empty, emails are written to the log instead.
+	SMTPHost     string
+	SMTPPort     int
+	SMTPUser     string
+	SMTPPassword string
+	MailFrom     string
+	// AppBaseURL is the public origin of the frontend, used to build links in emails.
+	AppBaseURL string
 }
 
 // Load reads configuration from the environment with defaults for local development.
@@ -40,13 +49,25 @@ func Load() (Config, error) {
 		UploadDir:  getEnv("UPLOAD_DIR", "uploads"),
 
 		TrustedProxies: splitList(os.Getenv("TRUSTED_PROXIES")),
+
+		SMTPHost:     os.Getenv("SMTP_HOST"),
+		SMTPUser:     os.Getenv("SMTP_USER"),
+		SMTPPassword: os.Getenv("SMTP_PASSWORD"),
+		MailFrom:     getEnv("MAIL_FROM", "CafeReview <no-reply@cafereview.local>"),
+		AppBaseURL:   getEnv("APP_BASE_URL", "http://localhost:3000"),
 	}
 
-	port, err := strconv.Atoi(getEnv("DB_PORT", "5432"))
+	smtpPort, err := strconv.Atoi(getEnv("SMTP_PORT", "1025"))
+	if err != nil {
+		return cfg, fmt.Errorf("invalid SMTP_PORT: %w", err)
+	}
+	cfg.SMTPPort = smtpPort
+
+	dbPort, err := strconv.Atoi(getEnv("DB_PORT", "5432"))
 	if err != nil {
 		return cfg, fmt.Errorf("invalid DB_PORT: %w", err)
 	}
-	cfg.DBPort = port
+	cfg.DBPort = dbPort
 
 	cookieSecure, err := parseBoolDefault(os.Getenv("COOKIE_SECURE"), true)
 	if err != nil {
