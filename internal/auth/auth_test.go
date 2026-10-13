@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/DATA-DOG/go-sqlmock"
@@ -123,7 +124,8 @@ func TestRequireAuth(t *testing.T) {
 			r.ServeHTTP(w, req)
 
 			assert.Equal(t, http.StatusUnauthorized, w.Code)
-			assert.Contains(t, w.Header().Values("Set-Cookie"), SessionCookie+"=", "cookies should be cleared")
+			cookies := strings.Join(w.Header().Values("Set-Cookie"), "\n")
+			assert.Contains(t, cookies, SessionCookie+"=", "cookies should be cleared")
 		})
 	})
 
