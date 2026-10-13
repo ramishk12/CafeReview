@@ -67,6 +67,9 @@ func main() {
 		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
+	// Remove expired and abandoned sessions in the background.
+	go auth.RunSessionCleanup(time.Hour)
+
 	log.Printf("listening on :%s", cfg.Port)
 	log.Fatal(srv.ListenAndServe())
 }

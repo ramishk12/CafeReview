@@ -277,3 +277,24 @@ func TestRequireAuthDoesNotSlideFreshSession(t *testing.T) {
 		assert.NoError(t, m.ExpectationsWereMet(), "no UPDATE expected for a fresh session")
 	})
 }
+
+func TestDeleteExpiredSessions(t *testing.T) {
+	withMockDB(t, func(m sqlmock.Sqlmock) {
+		m.ExpectExec(`DELETE FROM sessions WHERE expires_at <`).
+			WillReturnResult(sqlmock.NewResult(0, 3))
+
+		n, err := DeleteExpiredSessions()
+		require.NoError(t, err)
+		assert.Equal(t, int64(3), n)
+		assert.NoError(t, m.ExpectationsWereMet())
+	})
+}
+
+func TestDeleteExpiredSessionsReportsErrors(t *testing.T) {
+	withMockDB(t, func(m sqlmock.Sqlmock) {
+		m.ExpectExec(`DELETE FROM sessions WHERE expires_at <`).WillReturnError(sql.ErrConnDone)
+
+		_, err := DeleteExpiredSessions()
+		assert.Error(t, err)
+	})
+}

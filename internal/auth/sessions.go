@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
+	"log"
 	"net/http"
 	"time"
 
@@ -102,6 +103,31 @@ func extendSession(token string, expiresAt time.Time) error {
 func deleteSession(token string) error {
 	_, err := database.DB.Exec(`DELETE FROM sessions WHERE token_hash = $1`, hashToken(token))
 	return err
+}
+
+// DeleteExpiredSessions removes sessions whose expiry has passed. These include
+// sessions that were never logged out and abandoned, so the table does not grow
+// without bound.
+func DeleteExpiredSessions() (int64, error) {
+	res, err := database.DB.Exec(`DELETE FROM sessions WHERE expires_at < (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')`)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// RunSessionCleanup deletes expired sessions now and then every interval. It is
+// meant to run in a goroutine for the life of the process. Errors are logged and
+// do not stop the loop.
+func RunSessionCleanup(interval time.Duration) {
+	for {
+		if n, err := DeleteExpiredSessions(); err != nil {
+			log.Printf("session cleanup: %v", err)
+		} else if n > 0 {
+			log.Printf("session cleanup: removed %d expired session(s)", n)
+		}
+		time.Sleep(interval)
+	}
 }
 
 func setSessionCookies(c *gin.Context, token, csrf string) {
