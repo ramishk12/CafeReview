@@ -35,7 +35,7 @@ BACKEND_URL=http://localhost:8080 npm run build && npm run start
 For a production build, run `npm run build` and then `npm run start`.
 ## API
 
-All endpoints are under `/api`. Errors return `{"error": "..."}`. Writes need `Authorization: Bearer <token>`, and admin routes need an admin token.
+All endpoints are under `/api`. Errors return `{"error": "..."}`. Signing in sets an HttpOnly session cookie. Write requests also need the `X-CSRF-Token` header, copied from the `cafe_csrf` cookie. Admin routes require an admin account. `POST /auth/logout` deletes the session.
 
 | Method | Path | Notes |
 | --- | --- | --- |
@@ -58,7 +58,7 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Writes need `A
 ## Production checklist
 Before running anywhere other than your machine:
 
-- Set a strong `JWT_SECRET` (`openssl rand -base64 32`). The server refuses to start without one.
+- Set `COOKIE_SECURE=true` (the default) so session cookies are only sent over HTTPS. Local http development sets it false.
 - Set `DB_PASSWORD`. The server and `docker compose` both refuse to start without it, and the repo ships no default.
 - Change any credentials that came from an example. Never keep the defaults.
 - Set `TRUSTED_PROXIES` to the address of the proxy or frontend server that forwards requests, so the client IP is correct. Leave it empty only when the API is reached directly.

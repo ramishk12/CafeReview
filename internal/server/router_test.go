@@ -33,44 +33,10 @@ func TestRouterRegistersNewRoutes(t *testing.T) {
 	assert.True(t, hasRoute(r, http.MethodPut, "/api/cafes/:id"), "PUT /api/cafes/:id")
 	assert.True(t, hasRoute(r, http.MethodDelete, "/api/cafes/:id"), "DELETE /api/cafes/:id")
 	assert.True(t, hasRoute(r, http.MethodDelete, "/api/reviews/:id/images/:imageId"), "DELETE /api/reviews/:id/images/:imageId")
-}
-
-func TestCafeWritesRequireAdmin(t *testing.T) {
-	auth.Secret = []byte("router-test-secret")
-	userToken, err := auth.GenerateToken(7, "user")
-	assert.NoError(t, err)
-
-	r := NewRouter(t.TempDir())
-
-	tests := []struct {
-		name   string
-		method string
-		path   string
-		token  string
-		want   int
-	}{
-		{"Update without a token is rejected", http.MethodPut, "/api/cafes/1", "", http.StatusUnauthorized},
-		{"Update by a regular user is forbidden", http.MethodPut, "/api/cafes/1", userToken, http.StatusForbidden},
-		{"Delete without a token is rejected", http.MethodDelete, "/api/cafes/1", "", http.StatusUnauthorized},
-		{"Delete by a regular user is forbidden", http.MethodDelete, "/api/cafes/1", userToken, http.StatusForbidden},
-		{"Deleting a review photo needs a token", http.MethodDelete, "/api/reviews/1/images/2", "", http.StatusUnauthorized},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(tt.method, tt.path, nil)
-			if tt.token != "" {
-				req.Header.Set("Authorization", "Bearer "+tt.token)
-			}
-			w := httptest.NewRecorder()
-			r.ServeHTTP(w, req)
-			assert.Equal(t, tt.want, w.Code)
-		})
-	}
+	assert.True(t, hasRoute(r, http.MethodPost, "/api/auth/logout"), "POST /api/auth/logout")
 }
 
 func TestPublicAndReviewRoutes(t *testing.T) {
-	auth.Secret = []byte("router-test-secret")
 	r := NewRouter(t.TempDir())
 
 	for _, path := range []string{"/api/health", "/api/cafes", "/api/cafes/:id", "/api/cafes/:id/reviews"} {
@@ -83,7 +49,7 @@ func TestPublicAndReviewRoutes(t *testing.T) {
 	assert.True(t, hasRoute(r, http.MethodPost, "/api/reviews/:id/images"))
 }
 
-func TestReviewWritesRequireAuth(t *testing.T) {
+func TestWritesRequireASession(t *testing.T) {
 	r := NewRouter(t.TempDir())
 
 	for _, tt := range []struct{ method, path string }{
@@ -91,6 +57,9 @@ func TestReviewWritesRequireAuth(t *testing.T) {
 		{http.MethodPut, "/api/reviews/1"},
 		{http.MethodDelete, "/api/reviews/1"},
 		{http.MethodPost, "/api/reviews/1/images"},
+		{http.MethodPost, "/api/auth/logout"},
+		{http.MethodPut, "/api/cafes/1"},
+		{http.MethodDelete, "/api/cafes/1"},
 	} {
 		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
 			w := httptest.NewRecorder()

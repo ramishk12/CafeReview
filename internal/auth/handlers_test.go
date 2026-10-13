@@ -53,14 +53,16 @@ func postJSON(t *testing.T, handler gin.HandlerFunc, path string, body any) *htt
 }
 
 func TestRegister(t *testing.T) {
-	useSecret(t, "test-secret-for-register")
 	now := time.Now()
 
-	t.Run("Creates a user, normalises the email, and returns a token without the hash", func(t *testing.T) {
+	t.Run("Creates a user, normalises the email, and starts a session without the hash", func(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
 			m.ExpectQuery(`INSERT INTO users`).
 				WithArgs("new@example.com", "Ann", sqlmock.AnyArg()).
 				WillReturnRows(sqlmock.NewRows(userCols).AddRow(5, "new@example.com", "Ann", "hash", "user", now))
+
+			m.ExpectExec(`INSERT INTO sessions`).WithArgs(sqlmock.AnyArg(), 5, sqlmock.AnyArg(), sqlmock.AnyArg()).
+				WillReturnResult(sqlmock.NewResult(1, 1))
 
 			w := postJSON(t, Register, "/api/auth/register", map[string]string{
 				"email": "  New@Example.com ", "password": "longenough", "display_name": " Ann ",
@@ -69,10 +71,10 @@ func TestRegister(t *testing.T) {
 			assert.Equal(t, http.StatusCreated, w.Code)
 			assert.NotContains(t, w.Body.String(), "password_hash")
 			assert.NotContains(t, w.Body.String(), "hash\"")
-			var resp authResponse
-			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-			assert.NotEmpty(t, resp.Token)
-			assert.Equal(t, "new@example.com", resp.User.Email)
+			var u models.User
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &u))
+			assert.Equal(t, "new@example.com", u.Email)
+			assertHasSessionCookie(t, w)
 			assert.NoError(t, m.ExpectationsWereMet())
 		})
 	})
@@ -123,23 +125,25 @@ func TestRegister(t *testing.T) {
 }
 
 func TestLogin(t *testing.T) {
-	useSecret(t, "test-secret-for-login")
 	now := time.Now()
 	hash, err := HashPassword("correct-password")
 	require.NoError(t, err)
 
-	t.Run("Returns a token for correct credentials", func(t *testing.T) {
+	t.Run("Starts a session for correct credentials", func(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
 			m.ExpectQuery(`FROM users WHERE email = \$1`).WithArgs("demo@example.com").
 				WillReturnRows(sqlmock.NewRows(userCols).AddRow(2, "demo@example.com", "Demo", hash, "user", now))
 
+			m.ExpectExec(`INSERT INTO sessions`).WithArgs(sqlmock.AnyArg(), 2, sqlmock.AnyArg(), sqlmock.AnyArg()).
+				WillReturnResult(sqlmock.NewResult(1, 1))
+
 			w := postJSON(t, Login, "/api/auth/login", map[string]string{"email": "Demo@Example.com", "password": "correct-password"})
 
 			assert.Equal(t, http.StatusOK, w.Code)
-			var resp authResponse
-			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-			assert.NotEmpty(t, resp.Token)
-			assert.Equal(t, 2, resp.User.ID)
+			var u models.User
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &u))
+			assert.Equal(t, 2, u.ID)
+			assertHasSessionCookie(t, w)
 			assert.NoError(t, m.ExpectationsWereMet())
 		})
 	})
@@ -204,7 +208,6 @@ func TestMe(t *testing.T) {
 }
 
 func TestLoginAccountLockout(t *testing.T) {
-	useSecret(t, "test-secret-for-lockout")
 	previous := LoginGuard
 	LoginGuard = ratelimit.NewAccountGuard(2, time.Hour, 15*time.Minute)
 	t.Cleanup(func() { LoginGuard = previous })
@@ -235,7 +238,6 @@ func TestLoginAccountLockout(t *testing.T) {
 }
 
 func TestLoginSuccessClearsFailures(t *testing.T) {
-	useSecret(t, "test-secret-for-lockout")
 	previous := LoginGuard
 	LoginGuard = ratelimit.NewAccountGuard(2, time.Hour, 15*time.Minute)
 	t.Cleanup(func() { LoginGuard = previous })
@@ -255,6 +257,7 @@ func TestLoginSuccessClearsFailures(t *testing.T) {
 
 	withMockDB(t, func(m sqlmock.Sqlmock) {
 		m.ExpectQuery(`FROM users WHERE email`).WillReturnRows(rows())
+		m.ExpectExec(`INSERT INTO sessions`).WillReturnResult(sqlmock.NewResult(1, 1))
 		w := postJSON(t, Login, "/api/auth/login", map[string]string{"email": "b@example.com", "password": "correct-password"})
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
@@ -264,5 +267,38 @@ func TestLoginSuccessClearsFailures(t *testing.T) {
 		m.ExpectQuery(`FROM users WHERE email`).WillReturnRows(rows())
 		w := postJSON(t, Login, "/api/auth/login", map[string]string{"email": "b@example.com", "password": "wrong"})
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+func TestLogout(t *testing.T) {
+	t.Run("Deletes the session and clears the cookies", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectExec(`DELETE FROM sessions WHERE token_hash = \$1`).WithArgs(hashToken("tok")).
+				WillReturnResult(sqlmock.NewResult(0, 1))
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
+			c.Request.AddCookie(&http.Cookie{Name: SessionCookie, Value: "tok"})
+			Logout(c)
+			c.Writer.WriteHeaderNow()
+
+			assert.Equal(t, http.StatusNoContent, w.Code)
+			assert.NotEmpty(t, w.Result().Cookies(), "cookies should be cleared")
+			assert.NoError(t, m.ExpectationsWereMet())
+		})
+	})
+
+	t.Run("Succeeds without a session cookie", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/api/auth/logout", nil)
+			Logout(c)
+			c.Writer.WriteHeaderNow()
+
+			assert.Equal(t, http.StatusNoContent, w.Code)
+			assert.NoError(t, m.ExpectationsWereMet())
+		})
 	})
 }

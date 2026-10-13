@@ -8,15 +8,9 @@ import (
 	"strings"
 )
 
-// minJWTSecretBytes is the minimum length for HS256 signing keys: the key should be at least
-// as long as the hash output (256 bits), per RFC 7518 section 3.2.
-const minJWTSecretBytes = 32
-
 // placeholderPrefix marks the placeholders in .env.example. A value that starts
 // with it has not been replaced.
 const placeholderPrefix = "replace-me"
-
-const jwtSecretHelp = "generate one with: openssl rand -base64 32"
 
 // Config holds runtime settings read from environment variables.
 type Config struct {
@@ -26,11 +20,13 @@ type Config struct {
 	DBUser     string
 	DBPassword string
 	DBName     string
-	JWTSecret  string
 	UploadDir  string
 	// TrustedProxies are the addresses whose X-Forwarded-For header is trusted for
 	// the client IP. Empty means trust none, so the client IP is the direct peer.
 	TrustedProxies []string
+	// CookieSecure sets the Secure flag on session cookies. Defaults to true.
+	// Set COOKIE_SECURE=false for local http development.
+	CookieSecure bool
 }
 
 // Load reads configuration from the environment with defaults for local development.
@@ -41,7 +37,6 @@ func Load() (Config, error) {
 		DBUser:     getEnv("DB_USER", "postgres"),
 		DBPassword: os.Getenv("DB_PASSWORD"),
 		DBName:     getEnv("DB_NAME", "cafe_review"),
-		JWTSecret:  os.Getenv("JWT_SECRET"),
 		UploadDir:  getEnv("UPLOAD_DIR", "uploads"),
 
 		TrustedProxies: splitList(os.Getenv("TRUSTED_PROXIES")),
@@ -53,10 +48,13 @@ func Load() (Config, error) {
 	}
 	cfg.DBPort = port
 
-	if err := validateDBPassword(cfg.DBPassword); err != nil {
-		return cfg, err
+	cookieSecure, err := parseBoolDefault(os.Getenv("COOKIE_SECURE"), true)
+	if err != nil {
+		return cfg, fmt.Errorf("invalid COOKIE_SECURE: %w", err)
 	}
-	if err := validateJWTSecret(cfg.JWTSecret); err != nil {
+	cfg.CookieSecure = cookieSecure
+
+	if err := validateDBPassword(cfg.DBPassword); err != nil {
 		return cfg, err
 	}
 	return cfg, nil
@@ -74,17 +72,12 @@ func validateDBPassword(password string) error {
 	return nil
 }
 
-// validateJWTSecret rejects missing, placeholder, and short signing secrets. Length is counted in bytes.
-func validateJWTSecret(secret string) error {
-	switch {
-	case secret == "":
-		return errors.New("JWT_SECRET must be set; " + jwtSecretHelp)
-	case strings.HasPrefix(secret, placeholderPrefix):
-		return errors.New("JWT_SECRET is still the placeholder from .env.example; " + jwtSecretHelp)
-	case len(secret) < minJWTSecretBytes:
-		return fmt.Errorf("JWT_SECRET must be at least %d bytes (got %d); %s", minJWTSecretBytes, len(secret), jwtSecretHelp)
+// parseBoolDefault parses a boolean, returning fallback when the value is empty.
+func parseBoolDefault(value string, fallback bool) (bool, error) {
+	if strings.TrimSpace(value) == "" {
+		return fallback, nil
 	}
-	return nil
+	return strconv.ParseBool(value)
 }
 
 // splitList splits a comma-separated list, trimming blanks. An empty string returns nil.

@@ -41,7 +41,7 @@ func main() {
 		log.Fatalf("seeding failed: %v", err)
 	}
 
-	auth.Secret = []byte(cfg.JWTSecret)
+	auth.CookieSecure = cfg.CookieSecure
 
 	uploads, err := storage.NewLocal(cfg.UploadDir, "/uploads")
 	if err != nil {
@@ -67,6 +67,9 @@ func main() {
 		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 	}
+	// Remove expired and abandoned sessions in the background.
+	go auth.RunSessionCleanup(time.Hour)
+
 	log.Printf("listening on :%s", cfg.Port)
 	log.Fatal(srv.ListenAndServe())
 }

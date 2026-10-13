@@ -1,7 +1,7 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { AUTH_EXPIRED_EVENT, getToken, login as apiLogin, me, register as apiRegister, setToken } from '@/lib/api'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { AUTH_EXPIRED_EVENT, login as apiLogin, logout as apiLogout, me, register as apiRegister } from '@/lib/api'
 import { useToast } from '@/context/ToastContext'
 
 const AuthContext = createContext(null)
@@ -11,21 +11,25 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // Restore the session from the stored token.
+  // Track the current user so the expiry handler knows whether a session was active.
+  const userRef = useRef(null)
   useEffect(() => {
-    if (!getToken()) {
-      setLoading(false)
-      return
-    }
+    userRef.current = user
+  }, [user])
+
+  // Restore the session from the HttpOnly cookie. A 401 here just means signed out.
+  useEffect(() => {
     me()
       .then(setUser)
-      .catch(() => setToken(null))
+      .catch(() => setUser(null))
       .finally(() => setLoading(false))
   }, [])
 
-  // Any request that gets a 401 dispatches this event; drop the user and say why.
+  // A 401 on any other request means the session expired. Only notify if a user
+  // was signed in, so the initial check does not raise a false alarm.
   useEffect(() => {
     const onExpired = () => {
+      if (!userRef.current) return
       setUser(null)
       toast.show('Your session expired. Please log in again.', 'error')
     }
@@ -33,25 +37,32 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired)
   }, [toast])
 
-  const saveSession = useCallback(({ token, user: nextUser }) => {
-    setToken(token)
-    setUser(nextUser)
-    return nextUser
-  }, [])
-
   const value = useMemo(
     () => ({
       user,
       loading,
       isAdmin: user?.role === 'admin',
-      login: async (email, password) => saveSession(await apiLogin(email, password)),
-      register: async (email, password, displayName) => saveSession(await apiRegister(email, password, displayName)),
-      logout: () => {
-        setToken(null)
+      login: async (email, password) => {
+        const next = await apiLogin(email, password)
+        setUser(next)
+        return next
+      },
+      register: async (email, password, displayName) => {
+        const next = await apiRegister(email, password, displayName)
+        setUser(next)
+        return next
+      },
+      logout: async () => {
+        // Best effort: clear the session on the server, then locally.
+        try {
+          await apiLogout()
+        } catch {
+          // Ignore; the local state is cleared regardless.
+        }
         setUser(null)
       },
     }),
-    [user, loading, saveSession],
+    [user, loading],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
