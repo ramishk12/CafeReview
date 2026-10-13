@@ -105,3 +105,16 @@ func TestEveryResponseHasRequestID(t *testing.T) {
 
 	assert.NotEmpty(t, w.Header().Get("X-Request-ID"))
 }
+
+func TestSecurityHeaders(t *testing.T) {
+	r := NewRouter(t.TempDir())
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/health", nil))
+
+	assert.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"))
+	assert.Equal(t, "no-referrer", w.Header().Get("Referrer-Policy"))
+	assert.Equal(t, "DENY", w.Header().Get("X-Frame-Options"))
+	assert.Equal(t, "same-origin", w.Header().Get("Cross-Origin-Resource-Policy"))
+	assert.Contains(t, w.Header().Get("Content-Security-Policy"), "default-src 'none'")
+}

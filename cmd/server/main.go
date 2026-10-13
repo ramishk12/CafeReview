@@ -2,7 +2,9 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"os"
+	"time"
 
 	"github.com/joho/godotenv"
 
@@ -48,8 +50,20 @@ func main() {
 	handlers.Uploads = uploads
 
 	r := server.NewRouter(cfg.UploadDir)
+
+	// Explicit timeouts replace http.DefaultServer. ReadHeaderTimeout stops slow
+	// header attacks (slowloris). ReadTimeout allows a 5 MB upload on a slow link.
+	// WriteTimeout must cover reading the body and writing the response.
+	srv := &http.Server{
+		Addr:              ":" + cfg.Port,
+		Handler:           r,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       60 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
 	log.Printf("listening on :%s", cfg.Port)
-	log.Fatal(r.Run(":" + cfg.Port))
+	log.Fatal(srv.ListenAndServe())
 }
 
 // loadDotEnv reads .env if present. Variables already set in the environment take precedence.
