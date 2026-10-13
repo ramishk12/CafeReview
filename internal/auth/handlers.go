@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/mail"
+	"strconv"
 	"strings"
 
 	"cafe-review/internal/apierror"
@@ -103,9 +104,19 @@ func Login(c *gin.Context) {
 	}
 
 	email := strings.ToLower(strings.TrimSpace(req.Email))
+
+	// A locked account stops here, before the password is checked, so repeated
+	// guessing cannot continue. The lockout is short to limit denial of service.
+	if blocked, retryAfter := LoginGuard.Blocked(email); blocked {
+		c.Header("Retry-After", strconv.Itoa(int(retryAfter.Seconds())))
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "Too many failed attempts. Please try again later."})
+		return
+	}
+
 	row := database.DB.QueryRow(`SELECT `+userColumns+` FROM users WHERE email = $1`, email)
 	user, err := scanUser(row)
 	if errors.Is(err, sql.ErrNoRows) || (err == nil && !CheckPassword(user.PasswordHash, req.Password)) {
+		LoginGuard.Fail(email)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
 		return
 	}
@@ -113,6 +124,8 @@ func Login(c *gin.Context) {
 		apierror.Internal(c, err)
 		return
 	}
+
+	LoginGuard.Success(email)
 
 	token, err := GenerateToken(user.ID, user.Role)
 	if err != nil {

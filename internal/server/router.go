@@ -23,8 +23,8 @@ func NewRouter(uploadDir string) *gin.Engine {
 
 	api := r.Group("/api")
 
-	api.POST("/auth/register", auth.Register)
-	api.POST("/auth/login", auth.Login)
+	api.POST("/auth/register", auth.RegisterLimiter.Middleware(), auth.Register)
+	api.POST("/auth/login", auth.LoginLimiter.Middleware(), auth.Login)
 
 	authed := api.Group("")
 	authed.Use(auth.RequireAuth())

@@ -13,6 +13,7 @@ import (
 
 	"cafe-review/internal/database"
 	"cafe-review/internal/models"
+	"cafe-review/internal/ratelimit"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
@@ -199,5 +200,69 @@ func TestMe(t *testing.T) {
 
 			assert.Equal(t, http.StatusNotFound, w.Code)
 		})
+	})
+}
+
+func TestLoginAccountLockout(t *testing.T) {
+	useSecret(t, "test-secret-for-lockout")
+	previous := LoginGuard
+	LoginGuard = ratelimit.NewAccountGuard(2, time.Hour, 15*time.Minute)
+	t.Cleanup(func() { LoginGuard = previous })
+
+	hash, err := HashPassword("correct-password")
+	require.NoError(t, err)
+	now := time.Now()
+
+	// Two failed attempts lock the account.
+	for i := 0; i < 2; i++ {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`FROM users WHERE email`).WillReturnRows(
+				sqlmock.NewRows(userCols).AddRow(2, "lock@example.com", "Lock", hash, "user", now))
+			w := postJSON(t, Login, "/api/auth/login", map[string]string{"email": "lock@example.com", "password": "wrong"})
+			assert.Equal(t, http.StatusUnauthorized, w.Code)
+		})
+	}
+
+	// The next attempt is refused before the database is used, even with the right password.
+	for _, password := range []string{"wrong", "correct-password"} {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			w := postJSON(t, Login, "/api/auth/login", map[string]string{"email": "lock@example.com", "password": password})
+			assert.Equal(t, http.StatusTooManyRequests, w.Code)
+			assert.NotEmpty(t, w.Header().Get("Retry-After"))
+			assert.NoError(t, m.ExpectationsWereMet(), "no database call should be made while locked")
+		})
+	}
+}
+
+func TestLoginSuccessClearsFailures(t *testing.T) {
+	useSecret(t, "test-secret-for-lockout")
+	previous := LoginGuard
+	LoginGuard = ratelimit.NewAccountGuard(2, time.Hour, 15*time.Minute)
+	t.Cleanup(func() { LoginGuard = previous })
+
+	hash, err := HashPassword("correct-password")
+	require.NoError(t, err)
+	now := time.Now()
+	rows := func() *sqlmock.Rows {
+		return sqlmock.NewRows(userCols).AddRow(2, "b@example.com", "B", hash, "user", now)
+	}
+
+	withMockDB(t, func(m sqlmock.Sqlmock) {
+		m.ExpectQuery(`FROM users WHERE email`).WillReturnRows(rows())
+		w := postJSON(t, Login, "/api/auth/login", map[string]string{"email": "b@example.com", "password": "wrong"})
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	withMockDB(t, func(m sqlmock.Sqlmock) {
+		m.ExpectQuery(`FROM users WHERE email`).WillReturnRows(rows())
+		w := postJSON(t, Login, "/api/auth/login", map[string]string{"email": "b@example.com", "password": "correct-password"})
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	// The earlier failure was cleared, so one more failure does not lock the account.
+	withMockDB(t, func(m sqlmock.Sqlmock) {
+		m.ExpectQuery(`FROM users WHERE email`).WillReturnRows(rows())
+		w := postJSON(t, Login, "/api/auth/login", map[string]string{"email": "b@example.com", "password": "wrong"})
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }

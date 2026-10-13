@@ -13,7 +13,7 @@ const validSecret = "0123456789abcdef0123456789abcdef"
 
 func clearEnv(t *testing.T) {
 	t.Helper()
-	for _, k := range []string{"PORT", "DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "JWT_SECRET", "UPLOAD_DIR"} {
+	for _, k := range []string{"PORT", "DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "JWT_SECRET", "UPLOAD_DIR", "TRUSTED_PROXIES"} {
 		t.Setenv(k, "")
 	}
 }
@@ -87,4 +87,30 @@ func TestValidateJWTSecretCountsBytesNotCharacters(t *testing.T) {
 	// 16 multi-byte runes are 32 bytes: accepted. 15 are 30 bytes: rejected.
 	assert.NoError(t, validateJWTSecret(strings.Repeat("é", 16)))
 	assert.Error(t, validateJWTSecret(strings.Repeat("é", 15)))
+}
+
+func TestSplitList(t *testing.T) {
+	assert.Nil(t, splitList(""))
+	assert.Nil(t, splitList("   "))
+	assert.Equal(t, []string{"10.0.0.1"}, splitList("10.0.0.1"))
+	assert.Equal(t, []string{"10.0.0.1", "10.0.0.2"}, splitList(" 10.0.0.1 , 10.0.0.2 "))
+}
+
+func TestLoadReadsTrustedProxies(t *testing.T) {
+	clearEnv(t)
+	t.Setenv("JWT_SECRET", validSecret)
+	t.Setenv("TRUSTED_PROXIES", "10.0.0.1, 10.0.0.2")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"10.0.0.1", "10.0.0.2"}, cfg.TrustedProxies)
+}
+
+func TestLoadTrustedProxiesEmptyByDefault(t *testing.T) {
+	clearEnv(t)
+	t.Setenv("JWT_SECRET", validSecret)
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	assert.Nil(t, cfg.TrustedProxies)
 }
