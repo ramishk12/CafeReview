@@ -12,9 +12,9 @@ import (
 // as long as the hash output (256 bits), per RFC 7518 section 3.2.
 const minJWTSecretBytes = 32
 
-// jwtSecretPlaceholder is the prefix used by the placeholder in .env.example. A value that
-// starts with it has not been replaced.
-const jwtSecretPlaceholder = "replace-me"
+// placeholderPrefix marks the placeholders in .env.example. A value that starts
+// with it has not been replaced.
+const placeholderPrefix = "replace-me"
 
 const jwtSecretHelp = "generate one with: openssl rand -base64 32"
 
@@ -39,7 +39,7 @@ func Load() (Config, error) {
 		Port:       getEnv("PORT", "8080"),
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBUser:     getEnv("DB_USER", "postgres"),
-		DBPassword: getEnv("DB_PASSWORD", "postgres"),
+		DBPassword: os.Getenv("DB_PASSWORD"),
 		DBName:     getEnv("DB_NAME", "cafe_review"),
 		JWTSecret:  os.Getenv("JWT_SECRET"),
 		UploadDir:  getEnv("UPLOAD_DIR", "uploads"),
@@ -53,10 +53,25 @@ func Load() (Config, error) {
 	}
 	cfg.DBPort = port
 
+	if err := validateDBPassword(cfg.DBPassword); err != nil {
+		return cfg, err
+	}
 	if err := validateJWTSecret(cfg.JWTSecret); err != nil {
 		return cfg, err
 	}
 	return cfg, nil
+}
+
+// validateDBPassword requires a database password and rejects the .env.example
+// placeholder, so no working default credential ships with the code.
+func validateDBPassword(password string) error {
+	switch {
+	case password == "":
+		return errors.New("DB_PASSWORD must be set")
+	case strings.HasPrefix(password, placeholderPrefix):
+		return errors.New("DB_PASSWORD is still the placeholder from .env.example; set a strong password")
+	}
+	return nil
 }
 
 // validateJWTSecret rejects missing, placeholder, and short signing secrets. Length is counted in bytes.
@@ -64,7 +79,7 @@ func validateJWTSecret(secret string) error {
 	switch {
 	case secret == "":
 		return errors.New("JWT_SECRET must be set; " + jwtSecretHelp)
-	case strings.HasPrefix(secret, jwtSecretPlaceholder):
+	case strings.HasPrefix(secret, placeholderPrefix):
 		return errors.New("JWT_SECRET is still the placeholder from .env.example; " + jwtSecretHelp)
 	case len(secret) < minJWTSecretBytes:
 		return fmt.Errorf("JWT_SECRET must be at least %d bytes (got %d); %s", minJWTSecretBytes, len(secret), jwtSecretHelp)

@@ -3,11 +3,13 @@ services:
     image: postgres:18-alpine
     container_name: cafe-review-db
     environment:
-      POSTGRES_DB: cafe_review
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${DB_NAME:-cafe_review}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      # Required. Set DB_PASSWORD in .env (see .env.example); compose reads .env automatically.
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set in .env}
     ports:
-      - "5432:5432"
+      # Bound to localhost so the database is not reachable from the network.
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql
       - ./db/init:/docker-entrypoint-initdb.d:ro
