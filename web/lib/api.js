@@ -1,15 +1,19 @@
 // Browser-side API client. Requests go to /api on the same origin; next.config.mjs proxies them.
-const TOKEN_KEY = 'cafe_review_token'
+//
+// Authentication uses a server-side session sent as an HttpOnly cookie, so the
+// session token is never readable from JavaScript. A second, readable cookie
+// (cafe_csrf) carries a CSRF token that is echoed in the X-CSRF-Token header on
+// state-changing requests. The server compares the two.
 export const AUTH_EXPIRED_EVENT = 'auth:expired'
 
-export function getToken() {
-  if (typeof window === 'undefined') return null
-  return window.localStorage.getItem(TOKEN_KEY)
-}
+const CSRF_COOKIE = 'cafe_csrf'
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 
-export function setToken(token) {
-  if (token) window.localStorage.setItem(TOKEN_KEY, token)
-  else window.localStorage.removeItem(TOKEN_KEY)
+// getCookie reads a non-HttpOnly cookie by name.
+export function getCookie(name) {
+  if (typeof document === 'undefined') return ''
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'))
+  return match ? decodeURIComponent(match[1]) : ''
 }
 
 // ApiError.message is always safe to show to a user. requestId is set for server errors
@@ -38,8 +42,10 @@ export function fallbackMessage(status) {
 
 async function request(path, { method = 'GET', body, form } = {}) {
   const headers = {}
-  const token = getToken()
-  if (token) headers.Authorization = `Bearer ${token}`
+  if (!SAFE_METHODS.has(method)) {
+    const csrf = getCookie(CSRF_COOKIE)
+    if (csrf) headers['X-CSRF-Token'] = csrf
+  }
 
   let payload
   if (form) {
@@ -51,7 +57,7 @@ async function request(path, { method = 'GET', body, form } = {}) {
 
   let res
   try {
-    res = await fetch(`/api${path}`, { method, headers, body: payload })
+    res = await fetch(`/api${path}`, { method, headers, body: payload, credentials: 'same-origin' })
   } catch {
     throw new ApiError(NETWORK_ERROR_MESSAGE, 0)
   }
@@ -59,9 +65,8 @@ async function request(path, { method = 'GET', body, form } = {}) {
 
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    // A rejected token means the session expired; sign the user out everywhere.
-    if (res.status === 401 && token && path !== '/auth/login' && path !== '/auth/register') {
-      setToken(null)
+    // A rejected session on a non-auth request means it expired; let the app sign out.
+    if (res.status === 401 && path !== '/auth/login' && path !== '/auth/register') {
       window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT))
     }
 
@@ -81,6 +86,7 @@ async function request(path, { method = 'GET', body, form } = {}) {
 export const register = (email, password, displayName) =>
   request('/auth/register', { method: 'POST', body: { email, password, display_name: displayName } })
 export const login = (email, password) => request('/auth/login', { method: 'POST', body: { email, password } })
+export const logout = () => request('/auth/logout', { method: 'POST' })
 export const me = () => request('/auth/me')
 
 // Cafes (reads are also fetched on the server; see lib/serverApi.js)

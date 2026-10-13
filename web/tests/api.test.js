@@ -14,38 +14,49 @@ function mockFetch(status, body) {
 
 describe('api client', () => {
   beforeEach(() => {
-    window.localStorage.clear()
+    document.cookie = 'cafe_csrf=; Max-Age=0; path=/'
   })
   afterEach(() => {
     vi.unstubAllGlobals()
   })
 
-  it('stores and clears the token in localStorage', () => {
-    api.setToken('abc')
-    expect(api.getToken()).toBe('abc')
-    api.setToken(null)
-    expect(api.getToken()).toBeNull()
+  it('reads a cookie value', () => {
+    document.cookie = 'cafe_csrf=abc123; path=/'
+    expect(api.getCookie('cafe_csrf')).toBe('abc123')
+    expect(api.getCookie('missing')).toBe('')
   })
 
-  it('sends a bearer token and a JSON body when signed in', async () => {
-    api.setToken('tok-1')
+  it('sends credentials so the session cookie is included', async () => {
+    const fetchMock = mockFetch(200, { id: 1 })
+    await api.me()
+    expect(fetchMock.mock.calls[0][1].credentials).toBe('same-origin')
+  })
+
+  it('sends the CSRF header on state-changing requests', async () => {
+    document.cookie = 'cafe_csrf=csrf-token; path=/'
     const fetchMock = mockFetch(201, { id: 9 })
 
-    const result = await api.createReview(4, { rating: 5, body: 'Nice' })
+    await api.createReview(4, { rating: 5, body: 'Nice' })
 
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toBe('/api/cafes/4/reviews')
     expect(init.method).toBe('POST')
-    expect(init.headers.Authorization).toBe('Bearer tok-1')
-    expect(init.headers['Content-Type']).toBe('application/json')
+    expect(init.headers['X-CSRF-Token']).toBe('csrf-token')
+    expect(init.headers.Authorization).toBeUndefined()
     expect(JSON.parse(init.body)).toEqual({ rating: 5, body: 'Nice' })
-    expect(result).toEqual({ id: 9 })
   })
 
-  it('omits the Authorization header when signed out', async () => {
+  it('does not send the CSRF header on GET requests', async () => {
+    document.cookie = 'cafe_csrf=csrf-token; path=/'
     const fetchMock = mockFetch(200, [])
-    await api.me().catch(() => {})
-    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBeUndefined()
+    await api.me()
+    expect(fetchMock.mock.calls[0][1].headers['X-CSRF-Token']).toBeUndefined()
+  })
+
+  it('does not send the CSRF header when the cookie is absent', async () => {
+    const fetchMock = mockFetch(201, { id: 1 })
+    await api.createCafe({ name: 'x' })
+    expect(fetchMock.mock.calls[0][1].headers['X-CSRF-Token']).toBeUndefined()
   })
 
   it('does not set a Content-Type for multipart uploads, so the browser can add the boundary', async () => {
@@ -124,21 +135,18 @@ describe('api client', () => {
     expect(err.message).toBe("We couldn't find what you were looking for.")
   })
 
-  it('clears the token and announces expiry when a signed-in request gets 401', async () => {
-    api.setToken('stale')
-    mockFetch(401, { error: 'Invalid or expired token' })
+  it('announces expiry when a signed-in request gets 401', async () => {
+    mockFetch(401, { error: 'Invalid or expired session' })
     const listener = vi.fn()
     window.addEventListener(AUTH_EXPIRED_EVENT, listener)
 
-    await expect(api.deleteReview(2)).rejects.toThrow('Invalid or expired token')
+    await expect(api.deleteReview(2)).rejects.toThrow('Invalid or expired session')
 
-    expect(api.getToken()).toBeNull()
     expect(listener).toHaveBeenCalledTimes(1)
     window.removeEventListener(AUTH_EXPIRED_EVENT, listener)
   })
 
   it('does not treat a failed login as an expired session', async () => {
-    api.setToken('keep-me')
     mockFetch(401, { error: 'Invalid email or password' })
     const listener = vi.fn()
     window.addEventListener(AUTH_EXPIRED_EVENT, listener)

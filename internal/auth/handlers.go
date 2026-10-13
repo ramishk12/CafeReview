@@ -28,11 +28,6 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
-type authResponse struct {
-	Token string      `json:"token"`
-	User  models.User `json:"user"`
-}
-
 const userColumns = `id, email, display_name, password_hash, role, created_at`
 
 func scanUser(row interface{ Scan(...any) error }) (models.User, error) {
@@ -87,12 +82,8 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	token, err := GenerateToken(user.ID, user.Role)
-	if err != nil {
-		apierror.Internal(c, err)
-		return
-	}
-	c.JSON(http.StatusCreated, authResponse{Token: token, User: user})
+	startSession(c, user)
+	c.JSON(http.StatusCreated, user)
 }
 
 // Login verifies credentials and returns a token.
@@ -127,12 +118,30 @@ func Login(c *gin.Context) {
 
 	LoginGuard.Success(email)
 
-	token, err := GenerateToken(user.ID, user.Role)
+	startSession(c, user)
+	c.JSON(http.StatusOK, user)
+}
+
+// startSession creates a session and sets the session and CSRF cookies.
+func startSession(c *gin.Context, user models.User) {
+	token, csrf, err := createSession(user.ID)
 	if err != nil {
 		apierror.Internal(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, authResponse{Token: token, User: user})
+	setSessionCookies(c, token, csrf)
+}
+
+// Logout deletes the current session and clears the cookies.
+func Logout(c *gin.Context) {
+	if token, err := c.Cookie(SessionCookie); err == nil && token != "" {
+		if err := deleteSession(token); err != nil {
+			apierror.Internal(c, err)
+			return
+		}
+	}
+	clearSessionCookies(c)
+	c.Status(http.StatusNoContent)
 }
 
 // Me returns the currently authenticated user.

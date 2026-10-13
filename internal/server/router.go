@@ -28,7 +28,10 @@ func NewRouter(uploadDir string) *gin.Engine {
 
 	authed := api.Group("")
 	authed.Use(auth.RequireAuth())
+	// RequireCSRF skips safe methods, so GET /auth/me passes and writes need the header.
+	authed.Use(auth.RequireCSRF())
 	authed.GET("/auth/me", auth.Me)
+	authed.POST("/auth/logout", auth.Logout)
 
 	api.GET("/cafes", handlers.ListCafes)
 	api.GET("/cafes/:id", handlers.GetCafe)

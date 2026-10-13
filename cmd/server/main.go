@@ -41,7 +41,7 @@ func main() {
 		log.Fatalf("seeding failed: %v", err)
 	}
 
-	auth.Secret = []byte(cfg.JWTSecret)
+	auth.CookieSecure = cfg.CookieSecure
 
 	uploads, err := storage.NewLocal(cfg.UploadDir, "/uploads")
 	if err != nil {

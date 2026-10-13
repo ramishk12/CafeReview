@@ -1,33 +1,23 @@
 package auth
 
 import (
+	"crypto/subtle"
+	"database/sql"
 	"errors"
 	"net/http"
-	"strconv"
-	"strings"
-	"time"
 
+	"cafe-review/internal/apierror"
 	"cafe-review/internal/models"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
-
-// Secret signs and verifies JWTs. It is set once at startup from configuration.
-var Secret []byte
-
-const tokenTTL = 24 * time.Hour
 
 const (
 	ctxUserID = "userID"
 	ctxRole   = "role"
+	ctxCSRF   = "csrf"
 )
-
-type claims struct {
-	Role string `json:"role"`
-	jwt.RegisteredClaims
-}
 
 func HashPassword(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -38,57 +28,51 @@ func CheckPassword(hash, password string) bool {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 }
 
-func GenerateToken(userID int, role string) (string, error) {
-	if len(Secret) == 0 {
-		return "", errors.New("JWT secret is not configured")
-	}
-	now := time.Now()
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims{
-		Role: role,
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   strconv.Itoa(userID),
-			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(tokenTTL)),
-		},
-	})
-	return token.SignedString(Secret)
-}
-
-func parseToken(raw string) (userID int, role string, err error) {
-	var c claims
-	token, err := jwt.ParseWithClaims(raw, &c, func(t *jwt.Token) (any, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, errors.New("unexpected signing method")
-		}
-		return Secret, nil
-	})
-	if err != nil || !token.Valid {
-		return 0, "", errors.New("invalid token")
-	}
-	userID, err = strconv.Atoi(c.Subject)
-	if err != nil {
-		return 0, "", errors.New("invalid token subject")
-	}
-	return userID, c.Role, nil
-}
-
-// RequireAuth rejects requests without a valid Bearer token and stores the
-// user ID and role in the context.
+// RequireAuth authenticates a request from its session cookie. It loads the
+// session and the user's current role from the database, so a role change takes
+// effect on the next request, and stores the user ID, role, and the session's
+// CSRF token in the context.
 func RequireAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		header := c.GetHeader("Authorization")
-		raw, ok := strings.CutPrefix(header, "Bearer ")
-		if !ok || raw == "" {
+		token, err := c.Cookie(SessionCookie)
+		if err != nil || token == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
 			return
 		}
-		userID, role, err := parseToken(raw)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
+		sess, err := lookupSession(token)
+		if errors.Is(err, sql.ErrNoRows) {
+			clearSessionCookies(c)
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired session"})
 			return
 		}
-		c.Set(ctxUserID, userID)
-		c.Set(ctxRole, role)
+		if err != nil {
+			apierror.Internal(c, err)
+			return
+		}
+		c.Set(ctxUserID, sess.UserID)
+		c.Set(ctxRole, sess.Role)
+		c.Set(ctxCSRF, sess.CSRFToken)
+		c.Next()
+	}
+}
+
+// RequireCSRF must be placed after RequireAuth. For state-changing methods it
+// compares the X-CSRF-Token header with the session's CSRF token. Safe methods
+// pass through. The token is tied to the session and compared in constant time.
+func RequireCSRF() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		switch c.Request.Method {
+		case http.MethodGet, http.MethodHead, http.MethodOptions:
+			c.Next()
+			return
+		}
+		expected, _ := c.Get(ctxCSRF)
+		want, _ := expected.(string)
+		given := c.GetHeader("X-CSRF-Token")
+		if want == "" || given == "" || subtle.ConstantTimeCompare([]byte(want), []byte(given)) != 1 {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Invalid CSRF token"})
+			return
+		}
 		c.Next()
 	}
 }

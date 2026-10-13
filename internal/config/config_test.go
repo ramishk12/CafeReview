@@ -1,29 +1,24 @@
 package config
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// validSecret is 32 bytes, the minimum accepted JWT length.
-const validSecret = "0123456789abcdef0123456789abcdef"
-
 const validDBPassword = "test-db-password"
 
 func clearEnv(t *testing.T) {
 	t.Helper()
-	for _, k := range []string{"PORT", "DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "JWT_SECRET", "UPLOAD_DIR", "TRUSTED_PROXIES"} {
+	for _, k := range []string{"PORT", "DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "UPLOAD_DIR", "TRUSTED_PROXIES", "COOKIE_SECURE"} {
 		t.Setenv(k, "")
 	}
 }
 
-// setValid sets the two required variables so Load succeeds.
+// setValid sets the required variable so Load succeeds.
 func setValid(t *testing.T) {
 	t.Helper()
-	t.Setenv("JWT_SECRET", validSecret)
 	t.Setenv("DB_PASSWORD", validDBPassword)
 }
 
@@ -38,7 +33,7 @@ func TestLoadDefaults(t *testing.T) {
 	assert.Equal(t, 5432, cfg.DBPort)
 	assert.Equal(t, "cafe_review", cfg.DBName)
 	assert.Equal(t, "uploads", cfg.UploadDir)
-	assert.Equal(t, validSecret, cfg.JWTSecret)
+	assert.True(t, cfg.CookieSecure, "cookies default to Secure")
 }
 
 func TestLoadReadsEnvironment(t *testing.T) {
@@ -62,31 +57,6 @@ func TestLoadRejectsInvalidDBPort(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestLoadRejectsWeakJWTSecret(t *testing.T) {
-	tests := []struct {
-		name     string
-		secret   string
-		contains string
-	}{
-		{"missing", "", "JWT_SECRET must be set"},
-		{"placeholder from .env.example", "replace-me-with-openssl-rand-base64-32", "placeholder"},
-		{"too short", "short", "at least 32 bytes (got 5)"},
-		{"31 bytes", strings.Repeat("a", 31), "at least 32 bytes (got 31)"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			clearEnv(t)
-			t.Setenv("DB_PASSWORD", validDBPassword)
-			t.Setenv("JWT_SECRET", tt.secret)
-
-			_, err := Load()
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), tt.contains)
-			assert.Contains(t, err.Error(), "openssl rand -base64 32", "error should say how to fix it")
-		})
-	}
-}
-
 func TestLoadRejectsMissingDBPassword(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -99,7 +69,6 @@ func TestLoadRejectsMissingDBPassword(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			clearEnv(t)
-			t.Setenv("JWT_SECRET", validSecret)
 			t.Setenv("DB_PASSWORD", tt.password)
 
 			_, err := Load()
@@ -109,22 +78,39 @@ func TestLoadRejectsMissingDBPassword(t *testing.T) {
 	}
 }
 
-func TestValidateJWTSecretAcceptsMinimumLength(t *testing.T) {
-	assert.NoError(t, validateJWTSecret(strings.Repeat("a", 32)))
-	assert.NoError(t, validateJWTSecret(validSecret))
-	assert.NoError(t, validateJWTSecret(strings.Repeat("a", 64)))
-}
-
-func TestValidateJWTSecretCountsBytesNotCharacters(t *testing.T) {
-	// 16 multi-byte runes are 32 bytes: accepted. 15 are 30 bytes: rejected.
-	assert.NoError(t, validateJWTSecret(strings.Repeat("é", 16)))
-	assert.Error(t, validateJWTSecret(strings.Repeat("é", 15)))
-}
-
 func TestValidateDBPassword(t *testing.T) {
 	assert.NoError(t, validateDBPassword("a-strong-password"))
 	assert.Error(t, validateDBPassword(""))
 	assert.Error(t, validateDBPassword("replace-me-with-a-strong-password"))
+}
+
+func TestCookieSecure(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		want    bool
+		wantErr bool
+	}{
+		{"default is secure", "", true, false},
+		{"explicit true", "true", true, false},
+		{"explicit false for local http", "false", false, false},
+		{"invalid", "notabool", false, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			clearEnv(t)
+			setValid(t)
+			t.Setenv("COOKIE_SECURE", tt.value)
+
+			cfg, err := Load()
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, cfg.CookieSecure)
+		})
+	}
 }
 
 func TestSplitList(t *testing.T) {
