@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
+import { resendVerification } from '@/lib/api'
 import { safeRedirect } from '@/lib/redirect'
 
 export default function LoginForm() {
@@ -16,10 +17,12 @@ export default function LoginForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [needsVerification, setNeedsVerification] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setNeedsVerification(false)
     setSubmitting(true)
     try {
       const user = await login(email, password)
@@ -27,7 +30,17 @@ export default function LoginForm() {
       router.replace(safeRedirect(searchParams.get('from')))
     } catch (err) {
       setError(err.message)
+      setNeedsVerification(err.status === 403)
       setSubmitting(false)
+    }
+  }
+
+  const handleResend = async () => {
+    try {
+      await resendVerification(email)
+      toast.show('Verification email sent')
+    } catch (err) {
+      toast.show(err.message, 'error')
     }
   }
 
@@ -51,6 +64,11 @@ export default function LoginForm() {
           />
         </label>
         {error && <p className="alert-error">{error}</p>}
+        {needsVerification && (
+          <button type="button" onClick={handleResend} className="btn btn-ghost justify-self-start px-0 text-sm font-semibold">
+            Resend verification email
+          </button>
+        )}
         <button type="submit" disabled={submitting} className="btn mt-2">
           {submitting ? 'Logging in…' : 'Log in'}
         </button>

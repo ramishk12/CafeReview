@@ -63,9 +63,11 @@ func main() {
 	// Existing users are promoted but keep their current password.
 	var id int
 	err = database.DB.QueryRow(
-		`INSERT INTO users (email, display_name, password_hash, role)
-		 VALUES ($1, $2, $3, $4)
-		 ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role
+		`INSERT INTO users (email, display_name, password_hash, role, email_verified_at)
+		 VALUES ($1, $2, $3, $4, (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'))
+		 ON CONFLICT (email) DO UPDATE
+		   SET role = EXCLUDED.role,
+		       email_verified_at = COALESCE(users.email_verified_at, EXCLUDED.email_verified_at)
 		 RETURNING id`,
 		email, name, hash, models.RoleAdmin,
 	).Scan(&id)

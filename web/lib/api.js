@@ -88,6 +88,8 @@ export const register = (email, password, displayName) =>
 export const login = (email, password) => request('/auth/login', { method: 'POST', body: { email, password } })
 export const logout = () => request('/auth/logout', { method: 'POST' })
 export const me = () => request('/auth/me')
+export const verifyEmail = (token) => request(`/auth/verify?token=${encodeURIComponent(token)}`)
+export const resendVerification = (email) => request('/auth/verify/resend', { method: 'POST', body: { email } })
 
 // Cafes (reads are also fetched on the server; see lib/serverApi.js)
 export const createCafe = (cafe) => request('/cafes', { method: 'POST', body: cafe })

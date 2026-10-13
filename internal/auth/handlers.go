@@ -3,6 +3,7 @@ package auth
 import (
 	"database/sql"
 	"errors"
+	"log"
 	"net/http"
 	"net/mail"
 	"strconv"
@@ -28,11 +29,19 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
-const userColumns = `id, email, display_name, password_hash, role, created_at`
+const userColumns = `id, email, display_name, password_hash, role, created_at, email_verified_at`
+
+// registerMessage is the same response for a new and an existing email, so
+// registration cannot be used to check whether an address has an account.
+const registerMessage = "If this email can be registered, we've sent a verification link. Check your inbox."
 
 func scanUser(row interface{ Scan(...any) error }) (models.User, error) {
 	var u models.User
-	err := row.Scan(&u.ID, &u.Email, &u.DisplayName, &u.PasswordHash, &u.Role, &u.CreatedAt)
+	var verified sql.NullTime
+	err := row.Scan(&u.ID, &u.Email, &u.DisplayName, &u.PasswordHash, &u.Role, &u.CreatedAt, &verified)
+	if verified.Valid {
+		u.EmailVerifiedAt = &verified.Time
+	}
 	return u, err
 }
 
@@ -74,7 +83,8 @@ func Register(c *gin.Context) {
 	)
 	user, err := scanUser(row)
 	if database.IsUniqueViolation(err) {
-		c.JSON(http.StatusConflict, gin.H{"error": "Email is already registered"})
+		// Do not reveal that the address is taken: reply exactly as for a new signup.
+		c.JSON(http.StatusCreated, gin.H{"message": registerMessage})
 		return
 	}
 	if err != nil {
@@ -82,8 +92,11 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	startSession(c, user)
-	c.JSON(http.StatusCreated, user)
+	if err := sendVerification(user.ID, user.Email); err != nil {
+		// Logged only; the response stays generic so it does not leak state.
+		log.Printf("send verification email to %s: %v", user.Email, err)
+	}
+	c.JSON(http.StatusCreated, gin.H{"message": registerMessage})
 }
 
 // Login verifies credentials and returns a token.
@@ -116,10 +129,81 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	// The password is correct, so revealing that the email is unverified does not
+	// help enumeration. Only then do we refuse the session.
+	if user.EmailVerifiedAt == nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Please verify your email before logging in. Check your inbox for the confirmation link."})
+		return
+	}
+
 	LoginGuard.Success(email)
 
 	startSession(c, user)
 	c.JSON(http.StatusOK, user)
+}
+
+// Verify consumes a verification token and marks the user's email confirmed.
+func Verify(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "A verification token is required"})
+		return
+	}
+
+	userID, err := consumeEmailToken(token, verifyTokenKind)
+	if errors.Is(err, sql.ErrNoRows) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "This verification link is invalid or has expired."})
+		return
+	}
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+
+	if _, err := database.DB.Exec(
+		`UPDATE users SET email_verified_at = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') WHERE id = $1`, userID,
+	); err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Your email is confirmed. You can log in."})
+}
+
+type resendRequest struct {
+	Email string `json:"email"`
+}
+
+// ResendVerification sends a new verification link when the address needs one.
+// The response is always the same, so it cannot be used to check an email.
+func ResendVerification(c *gin.Context) {
+	var req resendRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	const message = "If that account still needs confirmation, we've sent a new link."
+
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+	var (
+		id       int
+		verified sql.NullTime
+	)
+	err := database.DB.QueryRow(`SELECT id, email_verified_at FROM users WHERE email = $1`, email).Scan(&id, &verified)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		// Unknown address: reply the same as for a known one.
+	case err != nil:
+		apierror.Internal(c, err)
+		return
+	case verified.Valid:
+		// Already confirmed: nothing to send, same reply.
+	default:
+		if err := sendVerification(id, email); err != nil {
+			log.Printf("resend verification email to %s: %v", email, err)
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"message": message})
 }
 
 // startSession creates a session and sets the session and CSRF cookies.

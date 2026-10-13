@@ -14,6 +14,8 @@ type User struct {
 	PasswordHash string    `json:"-"`
 	Role         string    `json:"role"`
 	CreatedAt    time.Time `json:"created_at"`
+	// EmailVerifiedAt is nil until the user confirms their email address.
+	EmailVerifiedAt *time.Time `json:"email_verified_at"`
 }
 
 type Cafe struct {

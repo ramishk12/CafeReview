@@ -11,7 +11,7 @@ const validDBPassword = "test-db-password"
 
 func clearEnv(t *testing.T) {
 	t.Helper()
-	for _, k := range []string{"PORT", "DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "UPLOAD_DIR", "TRUSTED_PROXIES", "COOKIE_SECURE"} {
+	for _, k := range []string{"PORT", "DB_HOST", "DB_PORT", "DB_USER", "DB_PASSWORD", "DB_NAME", "UPLOAD_DIR", "TRUSTED_PROXIES", "COOKIE_SECURE", "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD", "MAIL_FROM", "APP_BASE_URL"} {
 		t.Setenv(k, "")
 	}
 }
@@ -137,4 +137,25 @@ func TestLoadTrustedProxiesEmptyByDefault(t *testing.T) {
 	cfg, err := Load()
 	require.NoError(t, err)
 	assert.Nil(t, cfg.TrustedProxies)
+}
+
+func TestEmailDefaults(t *testing.T) {
+	clearEnv(t)
+	setValid(t)
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	assert.Empty(t, cfg.SMTPHost)
+	assert.Equal(t, 1025, cfg.SMTPPort)
+	assert.Equal(t, "http://localhost:3000", cfg.AppBaseURL)
+	assert.Equal(t, "CafeReview <no-reply@cafereview.local>", cfg.MailFrom)
+}
+
+func TestLoadRejectsInvalidSMTPPort(t *testing.T) {
+	clearEnv(t)
+	setValid(t)
+	t.Setenv("SMTP_PORT", "not-a-port")
+
+	_, err := Load()
+	assert.Error(t, err)
 }
