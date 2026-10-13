@@ -3,9 +3,12 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"cafe-review/internal/auth"
+	"cafe-review/internal/ratelimit"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -117,4 +120,22 @@ func TestSecurityHeaders(t *testing.T) {
 	assert.Equal(t, "DENY", w.Header().Get("X-Frame-Options"))
 	assert.Equal(t, "same-origin", w.Header().Get("Cross-Origin-Resource-Policy"))
 	assert.Contains(t, w.Header().Get("Content-Security-Policy"), "default-src 'none'")
+}
+
+func TestLoginRateLimitAppliesInRouter(t *testing.T) {
+	previous := auth.LoginLimiter
+	auth.LoginLimiter = ratelimit.NewKeyed(1, time.Minute)
+	t.Cleanup(func() { auth.LoginLimiter = previous })
+
+	r := NewRouter(t.TempDir())
+	// Use up the single token for the test client's IP.
+	auth.LoginLimiter.Allow("192.0.2.1")
+
+	req := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader("{}"))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusTooManyRequests, w.Code)
+	assert.NotEmpty(t, w.Header().Get("Retry-After"))
 }

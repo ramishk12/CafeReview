@@ -53,6 +53,8 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Writes need `A
 
 **Paging:** without `limit`, the full list is returned. With `limit`, the response is one page. Either way, the `X-Total-Count` response header gives the number of matching rows.
 
+**Rate limits:** login allows 5 requests per minute per IP, and an account is locked for 15 minutes after 10 failed logins within an hour. Registration allows 5 per hour per IP. Over the limit returns `429` with a `Retry-After` header. The client IP is taken from the direct connection unless `TRUSTED_PROXIES` lists the proxies to trust.
+
 ## Tests
 ```bash
 # Backend (unit tests; database calls are mocked with sqlmock)

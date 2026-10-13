@@ -50,6 +50,11 @@ func main() {
 	handlers.Uploads = uploads
 
 	r := server.NewRouter(cfg.UploadDir)
+	// Trust no proxy by default, so a spoofed X-Forwarded-For cannot bypass the
+	// per-IP rate limits. Set TRUSTED_PROXIES when running behind a proxy.
+	if err := r.SetTrustedProxies(cfg.TrustedProxies); err != nil {
+		log.Fatalf("trusted proxies: %v", err)
+	}
 
 	// Explicit timeouts replace http.DefaultServer. ReadHeaderTimeout stops slow
 	// header attacks (slowloris). ReadTimeout allows a 5 MB upload on a slow link.
