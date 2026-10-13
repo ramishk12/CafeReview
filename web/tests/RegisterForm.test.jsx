@@ -16,7 +16,9 @@ function fillForm() {
 }
 
 describe('RegisterForm', () => {
-  beforeEach(() => registerMock.mockReset())
+  beforeEach(() => {
+    registerMock.mockReset()
+  })
 
   it('shows the check-your-inbox screen after signup and does not sign the user in', async () => {
     registerMock.mockResolvedValue({ message: 'ok' })
@@ -34,6 +36,9 @@ describe('RegisterForm', () => {
     registerMock.mockRejectedValue(new Error('Email is required'))
 
     render(<RegisterForm />)
+    fireEvent.change(screen.getByLabelText('Display name'), { target: { value: 'Ann' } })
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'ann@example.com' } })
+    fireEvent.change(screen.getByLabelText('Password (at least 8 characters)'), { target: { value: 'password123' } })
     fillForm()
 
     expect(await screen.findByText('Email is required')).toBeInTheDocument()
