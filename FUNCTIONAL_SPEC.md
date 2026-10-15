@@ -103,15 +103,17 @@ current behaviour.
 
 ## 4. Lists
 
-- Signed-in users create named lists (for example Visited, Want to visit,
-  Favourites) and add cafes to them. A cafe can be in several lists.
-- The "create list" screen suggests example names; nothing is created
+- Signed-in users create named lists and add **cafes**, **reviewers**, and
+  **reviews** to them. An item can be in several lists.
+- Cafes are added from a cafe page; reviewers from a profile or a review author;
+  reviews from a review card (save the review or its author).
+- The "create list" screen suggests example names (Visited, Want to visit,
+  Favourites, Trusted reviewers, Helpful reviews); nothing is created
   automatically.
+- A list page shows its cafes, reviewers, and reviews, each removable.
 - Lists are private. Public lists are designed for (`lists.is_public`) but not
   built yet.
-- Limits: 50 lists per user and 500 cafes per list.
-- The schema also has `list_reviews` and `list_users` for future lists of reviews
-  and reviewers (issue #78).
+- Limits: 50 lists per user, and 500 of each item type per list.
 
 ## 5. Images
 
@@ -189,6 +191,10 @@ account.
 | DELETE | `/lists/:id` | Owner |
 | POST | `/lists/:id/cafes` | Owner. Body: `{"cafe_id": id}` |
 | DELETE | `/lists/:id/cafes/:cafeId` | Owner |
+| POST | `/lists/:id/users` | Owner. Body: `{"user_id": id}` |
+| DELETE | `/lists/:id/users/:userId` | Owner |
+| POST | `/lists/:id/reviews` | Owner. Body: `{"review_id": id}` |
+| DELETE | `/lists/:id/reviews/:reviewId` | Owner |
 | GET | `/cafes/:id/reviews` | `sort`, `limit`, `offset` |
 | POST | `/cafes/:id/reviews` | One per user per cafe per day. Body includes `visited_on` and optional `tag_ids` |
 | PUT | `/reviews/:id` | Owner only. Body includes rating, body, `visited_on`, and `tag_ids` |
@@ -228,7 +234,7 @@ account.
 
 ## 12. Not built yet
 
-Tracked as issues: city search and maps (#16), social sign-in (#33), account settings (#45), admin moderation (#35), reporting reviews (#40), helpful votes (#41), review edit history (#42), review drafts (#43), lists of reviewers and reviews (#78), following cafes and email (#46), similar-cafe warning (#36), loading and empty states (#39), and the launch work: image storage (#9), Docker (#48), enforcing the CSP (#62), structured logging (#49), and accessibility (#50).
+Tracked as issues: city search and maps (#16), social sign-in (#33), account settings (#45), admin moderation (#35), reporting reviews (#40), helpful votes (#41), review edit history (#42), review drafts (#43), following cafes and email (#46), similar-cafe warning (#36), loading and empty states (#39), and the launch work: image storage (#9), Docker (#48), enforcing the CSP (#62), structured logging (#49), and accessibility (#50).
 closing and archiving cafes, user lists, following cafes, social sign-in,
 account settings, public profiles, review reports and moderation, helpful votes,
 review edit history, review drafts, maps integration, Dockerfiles, structured
