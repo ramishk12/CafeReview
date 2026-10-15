@@ -41,7 +41,10 @@ current behaviour.
 - **Detail:** a cafe page shows its name, address, description, average rating,
   review count and reviewer count, its reviews and photos.
 - **Admin only:** create, edit (name, address, description), and delete a cafe.
-  Deleting a cafe also deletes its reviews and their photo files.
+  Admins have an Edit and Delete toolbar on the cafe page, an Edit action on the
+  browse list cards, and a dedicated edit page. Deleting a cafe also deletes its
+  reviews and their photo files. This admin surface is the base for later actions
+  (closing a cafe, setting a background image).
 - **Summary values:** the average rating is the mean of all reviews; the review
   count is the number of reviews (visits); the reviewer count is the number of
   distinct people who reviewed it. Labels read "N reviews from M people".
@@ -131,6 +134,7 @@ account.
 - `/` browse cafes (search and sort).
 - `/cafes/:id` cafe detail, reviews, photos, and the review form.
 - `/cafes/new` admin: add a cafe.
+- `/cafes/:id/edit` admin: edit an existing cafe.
 - `/login`, `/register`, `/verify` account pages.
 
 ## 10. Data model

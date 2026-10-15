@@ -3,9 +3,10 @@ import Link from 'next/link'
 import { cafeGradient, ratingLabel } from '@/lib/cafeTheme'
 import Stars from './Stars'
 
-export default function CafeCard({ cafe }) {
+export default function CafeCard({ cafe, isAdmin }) {
   const hasReviews = cafe.review_count > 0
   return (
+    <div className="relative h-full">
     <Link
       href={`/cafes/${cafe.id}`}
       className="card group flex h-full flex-col overflow-hidden no-underline transition duration-300 hover:-translate-y-1 hover:shadow-xl focus-visible:-translate-y-1"
@@ -34,5 +35,14 @@ export default function CafeCard({ cafe }) {
         </div>
       </div>
     </Link>
+      {isAdmin && (
+        <Link
+          href={`/cafes/${cafe.id}/edit`}
+          className="absolute top-3 left-3 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-slate-900 no-underline shadow-sm transition hover:bg-white dark:bg-slate-900/90 dark:text-white dark:hover:bg-slate-900"
+        >
+          Edit
+        </Link>
+      )}
+    </div>
   )
 }

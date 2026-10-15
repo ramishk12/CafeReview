@@ -2,6 +2,7 @@
 
 import { Search, SlidersHorizontal } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useAuth } from '@/context/AuthContext'
 import CafeCard from './CafeCard'
 
 const SORTS = {
@@ -12,6 +13,7 @@ const SORTS = {
 
 // Search and sort run in the browser; the list itself is fetched on the server.
 export default function CafeBrowser({ cafes }) {
+  const { isAdmin } = useAuth()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('rating')
 
@@ -58,7 +60,7 @@ export default function CafeBrowser({ cafes }) {
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
           {visible.map((cafe) => (
             <li key={cafe.id}>
-              <CafeCard cafe={cafe} />
+              <CafeCard cafe={cafe} isAdmin={isAdmin} />
             </li>
           ))}
         </ul>
