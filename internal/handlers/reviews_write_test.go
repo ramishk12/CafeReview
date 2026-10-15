@@ -23,6 +23,7 @@ func fetchReviewMock(m sqlmock.Sqlmock, id int, now time.Time) {
 	m.ExpectQuery(`FROM reviews r JOIN users u ON u.id = r.user_id WHERE r.id = \$1`).WithArgs(id).
 		WillReturnRows(sqlmock.NewRows(reviewCols).AddRow(id, 1, 7, "Demo User", 4, "Lovely.", now, now, now))
 	m.ExpectQuery(`FROM review_images`).WillReturnRows(sqlmock.NewRows(imageCols))
+	m.ExpectQuery(`FROM review_tags`).WillReturnRows(sqlmock.NewRows([]string{"review_id", "id", "name", "category", "scope"}))
 }
 
 func TestValidateReviewRequest(t *testing.T) {
@@ -60,6 +61,9 @@ func TestCreateReview(t *testing.T) {
 				WillReturnRows(sqlmock.NewRows([]string{"closed_at"}).AddRow(nil))
 			m.ExpectQuery(`INSERT INTO reviews`).WithArgs(1, 7, 4, "Lovely.", sqlmock.AnyArg()).
 				WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
+			m.ExpectBegin()
+			m.ExpectExec(`DELETE FROM review_tags WHERE review_id = \$1`).WithArgs(10).WillReturnResult(sqlmock.NewResult(0, 0))
+			m.ExpectCommit()
 			fetchReviewMock(m, 10, now)
 
 			c, w := newTestContext(t, http.MethodPost, "/api/cafes/1/reviews",
@@ -143,6 +147,9 @@ func TestUpdateReview(t *testing.T) {
 				WillReturnRows(sqlmock.NewRows([]string{"closed_at"}).AddRow(nil))
 			m.ExpectExec(`UPDATE reviews SET rating = \$1, body = \$2, visited_on = \$3`).WithArgs(2, "Changed my mind.", sqlmock.AnyArg(), 10).
 				WillReturnResult(sqlmock.NewResult(0, 1))
+			m.ExpectBegin()
+			m.ExpectExec(`DELETE FROM review_tags WHERE review_id = \$1`).WithArgs(10).WillReturnResult(sqlmock.NewResult(0, 0))
+			m.ExpectCommit()
 			fetchReviewMock(m, 10, now)
 
 			c, w := newTestContext(t, http.MethodPut, "/api/reviews/10",
@@ -293,6 +300,9 @@ func TestCreateReviewAcceptsVisitedOn(t *testing.T) {
 			WillReturnRows(sqlmock.NewRows([]string{"closed_at"}).AddRow(nil))
 		m.ExpectQuery(`INSERT INTO reviews`).WithArgs(1, 7, 4, "Lovely.", "2020-05-05").
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
+		m.ExpectBegin()
+		m.ExpectExec(`DELETE FROM review_tags WHERE review_id = \$1`).WithArgs(10).WillReturnResult(sqlmock.NewResult(0, 0))
+		m.ExpectCommit()
 		fetchReviewMock(m, 10, now)
 
 		c, w := newTestContext(t, http.MethodPost, "/api/cafes/1/reviews",

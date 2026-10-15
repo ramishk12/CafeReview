@@ -22,7 +22,7 @@ const reviews = [
   {
     id: 10, user_id: 7, author_name: 'Demo User', rating: 5, body: 'Excellent.', visited_on: '2026-09-28',
     created_at: '2026-10-01T10:00:00Z', updated_at: '2026-10-01T10:00:00Z',
-    images: [{ id: 100, url: '/uploads/a.jpg' }],
+    images: [{ id: 100, url: '/uploads/a.jpg' }], tags: [{ id: 1, name: 'Seasonal menu' }],
   },
   {
     id: 11, user_id: 8, author_name: 'Sam Lee', rating: 2, body: 'Too cold.', visited_on: '2026-10-02',
@@ -90,6 +90,11 @@ describe('ReviewSection', () => {
     expect(screen.getByText(/no longer accepting new reviews/i)).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Write a review' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
+  })
+
+  it('shows a review\'s tags', () => {
+    render(<ReviewSection cafe={cafe} reviews={reviews} />)
+    expect(screen.getByText('Seasonal menu')).toBeInTheDocument()
   })
 
   it('shows an empty state with no reviews', () => {

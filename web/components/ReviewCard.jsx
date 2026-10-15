@@ -45,6 +45,19 @@ export default function ReviewCard({ review, isOwner, onOpenPhoto, onEdit }) {
 
       <p className="mt-4 whitespace-pre-wrap leading-relaxed text-slate-700 dark:text-slate-300">{review.body}</p>
 
+      {review.tags?.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {review.tags.map((tag) => (
+            <span
+              key={tag.id}
+              className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-white/10 dark:text-slate-300"
+            >
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      )}
+
       {review.images?.length > 0 && (
         <ul className="mt-4 flex flex-wrap gap-3">
           {review.images.map((img, i) => (

@@ -87,6 +87,9 @@ current behaviour.
   per-cafe photo gallery.
 - **Closed cafes:** no new reviews can be added, and existing reviews can no
   longer be edited. Existing reviews can still be deleted by their owner.
+- **Review tags:** a review can be tagged by its author with admin-curated
+  visit tags (for example `Seasonal menu`, `Limited edition`, `Event`). Tags
+  appear on the review and can be set in the review form.
 
 ## 4. Images
 
@@ -156,8 +159,8 @@ account.
 | DELETE | `/cafes/:id/background/review-image` | Admin |
 | PUT | `/review-images/:id/tags` | Owner or admin. Body: `{"tag_ids": [...]}` |
 | GET | `/cafes/:id/reviews` | `sort`, `limit`, `offset` |
-| POST | `/cafes/:id/reviews` | One per user per cafe per day |
-| PUT | `/reviews/:id` | Owner only |
+| POST | `/cafes/:id/reviews` | One per user per cafe per day. Body includes `visited_on` and optional `tag_ids` |
+| PUT | `/reviews/:id` | Owner only. Body includes rating, body, `visited_on`, and `tag_ids` |
 | DELETE | `/reviews/:id` | Owner only; also removes photos |
 | POST | `/reviews/:id/images` | Owner only |
 | DELETE | `/reviews/:id/images/:imageId` | Owner only |
@@ -187,10 +190,11 @@ account.
   (`approved`/`pending`), created_at. Unique on (scope, name).
 - `cafe_tags`: cafe_id, tag_id.
 - `review_image_tags`: image_id, tag_id.
+- `review_tags`: review_id, tag_id.
 
 ## 11. Not built yet
 
-Tracked as issues: review tags,
+Tracked as issues:
 closing and archiving cafes, user lists, following cafes, social sign-in,
 account settings, public profiles, review reports and moderation, helpful votes,
 review edit history, review drafts, maps integration, Dockerfiles, structured

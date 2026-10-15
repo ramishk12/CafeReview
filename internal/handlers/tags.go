@@ -214,6 +214,43 @@ func loadTagsForImages(imageIDs []int) (map[int][]models.Tag, error) {
 	return result, rows.Err()
 }
 
+// loadTagsForReviews returns the tags for each review, grouped by review ID.
+func loadTagsForReviews(reviewIDs []int) (map[int][]models.Tag, error) {
+	result := make(map[int][]models.Tag)
+	if len(reviewIDs) == 0 {
+		return result, nil
+	}
+
+	placeholders := make([]string, len(reviewIDs))
+	args := make([]any, len(reviewIDs))
+	for i, id := range reviewIDs {
+		args[i] = id
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+	}
+	query := fmt.Sprintf(`
+		SELECT rt.review_id, t.id, t.name, t.category, t.scope
+		FROM review_tags rt
+		JOIN tags t ON t.id = rt.tag_id
+		WHERE rt.review_id IN (%s)
+		ORDER BY t.category, t.name`, strings.Join(placeholders, ", "))
+
+	rows, err := database.DB.Query(query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var reviewID int
+		var t models.Tag
+		if err := rows.Scan(&reviewID, &t.ID, &t.Name, &t.Category, &t.Scope); err != nil {
+			return nil, err
+		}
+		result[reviewID] = append(result[reviewID], t)
+	}
+	return result, rows.Err()
+}
+
 // parseTagIDs reads the comma-separated tags query parameter. It writes a 400
 // and returns ok=false when a value is not a positive integer.
 func parseTagIDs(c *gin.Context) ([]int, bool) {
