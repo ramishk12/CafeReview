@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"database/sql"
 	"errors"
 	"io"
@@ -8,6 +9,7 @@ import (
 
 	"cafe-review/internal/apierror"
 	"cafe-review/internal/database"
+	"cafe-review/internal/images"
 	"cafe-review/internal/models"
 
 	"github.com/gin-gonic/gin"
@@ -76,7 +78,22 @@ func UploadReviewImage(c *gin.Context) {
 		return
 	}
 
-	filename, err := Uploads.Save(ext, f)
+	// The body is already size-limited, so reading it into memory is bounded.
+	raw, err := io.ReadAll(f)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "The image could not be read"})
+		return
+	}
+
+	// Remove privacy metadata (GPS, device, comments) while keeping colour
+	// profiles and the orientation, and drop any data appended after the image.
+	clean, err := images.Sanitize(raw)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "The image could not be processed"})
+		return
+	}
+
+	filename, err := Uploads.Save(ext, bytes.NewReader(clean))
 	if err != nil {
 		apierror.Internal(c, err)
 		return

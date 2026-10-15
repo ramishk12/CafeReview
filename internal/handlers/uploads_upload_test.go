@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"mime/multipart"
@@ -21,10 +22,55 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// The fixtures are minimal but structurally valid, so the metadata sanitizer
+// accepts them.
+
+func jfifFixture() []byte {
+	return []byte{0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00, 0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00}
+}
+
+func jpegFixture() []byte {
+	out := []byte{0xFF, 0xD8}
+	out = append(out, jfifFixture()...)
+	out = append(out, 0xFF, 0xDA, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3F, 0x00) // SOS header
+	out = append(out, 0x12, 0x34, 0xFF, 0xD9)                                     // scan data + EOI
+	return out
+}
+
+func pngChunkFixture(typ string, data []byte) []byte {
+	out := make([]byte, 0, len(data)+12)
+	var length [4]byte
+	binary.BigEndian.PutUint32(length[:], uint32(len(data)))
+	out = append(out, length[:]...)
+	out = append(out, typ...)
+	out = append(out, data...)
+	return append(out, 0, 0, 0, 0) // CRC is not verified by the sanitizer
+}
+
+func pngFixture() []byte {
+	ihdr := []byte{0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0}
+	out := []byte{0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A}
+	out = append(out, pngChunkFixture("IHDR", ihdr)...)
+	out = append(out, pngChunkFixture("IDAT", []byte{0x08, 0xD7})...)
+	return append(out, pngChunkFixture("IEND", nil)...)
+}
+
+func webpFixture() []byte {
+	vp8x := []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	chunk := append([]byte("VP8X"), make([]byte, 4)...)
+	binary.LittleEndian.PutUint32(chunk[4:8], uint32(len(vp8x)))
+	chunk = append(chunk, vp8x...)
+	body := append([]byte("WEBP"), chunk...)
+
+	out := append([]byte("RIFF"), make([]byte, 4)...)
+	binary.LittleEndian.PutUint32(out[4:8], uint32(len(body)))
+	return append(out, body...)
+}
+
 var (
-	pngBytes  = append([]byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}, make([]byte, 64)...)
-	jpegBytes = append([]byte{0xff, 0xd8, 0xff, 0xe0}, make([]byte, 64)...)
-	webpBytes = append([]byte("RIFF\x00\x00\x00\x00WEBPVP8 "), make([]byte, 64)...)
+	pngBytes  = pngFixture()
+	jpegBytes = jpegFixture()
+	webpBytes = webpFixture()
 )
 
 // multipartImage builds a multipart request with the file in the "image" field.

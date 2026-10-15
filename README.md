@@ -56,7 +56,7 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Signing in set
 | POST | `/cafes/:id/reviews` | One review per user per cafe |
 | PUT | `/reviews/:id` | Owner only |
 | DELETE | `/reviews/:id` | Owner only. Also deletes the review's photo files |
-| POST | `/reviews/:id/images` | Owner only. Multipart field `image`: JPEG, PNG, or WebP, up to 5 MB |
+| POST | `/reviews/:id/images` | Owner only. Multipart field `image`: JPEG, PNG, or WebP, up to 5 MB. Privacy metadata (GPS, device, comments) is stripped on upload; colour profiles and orientation are kept |
 | DELETE | `/reviews/:id/images/:imageId` | Owner only. Removes one photo |
 
 **Paging:** without `limit`, the full list is returned. With `limit`, the response is one page. Either way, the `X-Total-Count` response header gives the number of matching rows.
