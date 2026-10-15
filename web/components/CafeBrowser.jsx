@@ -1,46 +1,61 @@
 'use client'
 
 import { Search, SlidersHorizontal } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import CafeCard from './CafeCard'
 
 const SORTS = {
-  rating: { label: 'Top rated', compare: (a, b) => b.avg_rating - a.avg_rating || b.review_count - a.review_count },
-  reviews: { label: 'Most reviewed', compare: (a, b) => b.review_count - a.review_count || b.avg_rating - a.avg_rating },
-  name: { label: 'A–Z', compare: (a, b) => a.name.localeCompare(b.name) },
+  rating: 'Top rated',
+  reviews: 'Most reviewed',
+  name: 'A–Z',
 }
 
-// Search, tag filtering, and sort run in the browser; the list and the tag list
-// are fetched on the server. Tags are matched with AND: a cafe must have every
-// selected tag.
-export default function CafeBrowser({ cafes, tags = [] }) {
+// Presentational list plus controls. Filtering, sorting, and paging all happen
+// on the server; the controls write to the URL, so views are shareable.
+export default function CafeBrowser({ cafes, tags = [], total = 0, page = 1, pageSize = 24 }) {
   const { isAdmin } = useAuth()
-  const [query, setQuery] = useState('')
-  const [sort, setSort] = useState('rating')
-  const [selectedTags, setSelectedTags] = useState([])
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
 
-  const toggleTag = (id) =>
-    setSelectedTags((current) => (current.includes(id) ? current.filter((t) => t !== id) : [...current, id]))
+  const sort = searchParams.get('sort') || 'rating'
+  const currentTags = (searchParams.get('tags') || '').split(',').filter(Boolean)
+  const [query, setQuery] = useState(searchParams.get('q') || '')
 
-  const visible = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const matches = cafes.filter((c) => {
-      if (q && !(c.name.toLowerCase().includes(q) || (c.address || '').toLowerCase().includes(q))) return false
-      if (selectedTags.length > 0) {
-        const ids = new Set((c.tags || []).map((t) => t.id))
-        if (!selectedTags.every((id) => ids.has(id))) return false
-      }
-      return true
-    })
-    return [...matches].sort(SORTS[sort].compare)
-  }, [cafes, query, sort, selectedTags])
+  const buildHref = (updates) => {
+    const next = new URLSearchParams(searchParams.toString())
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === undefined || value === null || value === '') next.delete(key)
+      else next.set(key, String(value))
+    }
+    const qs = next.toString()
+    return qs ? `${pathname}?${qs}` : pathname
+  }
 
-  const tagGroups = useMemo(() => {
-    const groups = {}
-    for (const t of tags) (groups[t.category] ||= []).push(t)
-    return Object.entries(groups)
-  }, [tags])
+  // Debounced search: typing updates the URL, which resets to page 1.
+  useEffect(() => {
+    if (query === (searchParams.get('q') || '')) return
+    const timer = setTimeout(() => router.push(buildHref({ q: query, page: undefined })), 300)
+    return () => clearTimeout(timer)
+  }, [query]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleTag = (id) => {
+    const value = String(id)
+    const ids = currentTags.includes(value) ? currentTags.filter((t) => t !== value) : [...currentTags, value]
+    router.push(buildHref({ tags: ids.join(','), page: undefined }))
+  }
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  let start = Math.max(1, page - 2)
+  let end = Math.min(totalPages, start + 4)
+  start = Math.max(1, end - 4)
+  const pages = []
+  for (let p = start; p <= end; p++) pages.push(p)
+
+  const tagGroups = {}
+  for (const tag of tags) (tagGroups[tag.category] ||= []).push(tag)
 
   return (
     <div>
@@ -59,23 +74,27 @@ export default function CafeBrowser({ cafes, tags = [] }) {
         <label className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
           <SlidersHorizontal size={16} aria-hidden="true" />
           <span className="sr-only sm:not-sr-only">Sort</span>
-          <select value={sort} onChange={(e) => setSort(e.target.value)} className="field w-auto py-2.5 pr-8">
-            {Object.entries(SORTS).map(([key, s]) => (
+          <select
+            value={sort}
+            onChange={(e) => router.push(buildHref({ sort: e.target.value, page: undefined }))}
+            className="field w-auto py-2.5 pr-8"
+          >
+            {Object.entries(SORTS).map(([key, label]) => (
               <option key={key} value={key}>
-                {s.label}
+                {label}
               </option>
             ))}
           </select>
         </label>
       </div>
 
-      {tagGroups.length > 0 && (
+      {Object.keys(tagGroups).length > 0 && (
         <div className="mb-6 flex flex-col gap-2">
-          {tagGroups.map(([category, list]) => (
+          {Object.entries(tagGroups).map(([category, list]) => (
             <div key={category} className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold tracking-wide text-slate-400 uppercase">{category}</span>
               {list.map((tag) => {
-                const active = selectedTags.includes(tag.id)
+                const active = currentTags.includes(String(tag.id))
                 return (
                   <button
                     key={tag.id}
@@ -97,18 +116,50 @@ export default function CafeBrowser({ cafes, tags = [] }) {
         </div>
       )}
 
-      {visible.length === 0 ? (
-        <p className="card py-16 text-center text-slate-500">
-          {cafes.length === 0 ? 'No cafes yet.' : `No cafes match “${query.trim()}”.`}
-        </p>
+      {cafes.length === 0 ? (
+        <p className="card py-16 text-center text-slate-500">No cafes match your search.</p>
       ) : (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
-          {visible.map((cafe) => (
+          {cafes.map((cafe) => (
             <li key={cafe.id}>
               <CafeCard cafe={cafe} isAdmin={isAdmin} />
             </li>
           ))}
         </ul>
+      )}
+
+      {totalPages > 1 && (
+        <nav className="mt-10 flex items-center justify-center gap-2" aria-label="Pagination">
+          <button
+            type="button"
+            disabled={page <= 1}
+            onClick={() => router.push(buildHref({ page: page - 1 === 1 ? undefined : page - 1 }))}
+            className="btn btn-ghost px-3.5 py-2 text-sm"
+          >
+            Previous
+          </button>
+          {pages.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => router.push(buildHref({ page: p === 1 ? undefined : p }))}
+              aria-current={p === page ? 'page' : undefined}
+              className={`rounded-full px-3.5 py-1.5 text-sm ${
+                p === page ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200'
+              }`}
+            >
+              {p}
+            </button>
+          ))}
+          <button
+            type="button"
+            disabled={page >= totalPages}
+            onClick={() => router.push(buildHref({ page: page + 1 }))}
+            className="btn btn-ghost px-3.5 py-2 text-sm"
+          >
+            Next
+          </button>
+        </nav>
       )}
     </div>
   )

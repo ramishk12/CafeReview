@@ -35,9 +35,11 @@ current behaviour.
 
 ## 2. Cafes
 
-- **Browse:** list of cafes with search over name and address, sorting by name,
-  rating, number of reviews, or newest, and paging with `limit` and `offset`. The
-  total number of matches is returned in the `X-Total-Count` header.
+- **Browse:** list of cafes with search over name and address, tag filters,
+  sorting by name, rating, number of reviews, or newest, and paging. The list is
+  paged on the server (24 per page) and the view is driven by the URL
+  (`q`, `sort`, `tags`, `page`), so views are shareable and the back button works.
+  The total number of matches is returned in the `X-Total-Count` header.
 - **Detail:** a cafe page shows its name, address, description, average rating,
   review count and reviewer count, its reviews and photos.
 - **Admin only:** create, edit (name, address, description), and delete a cafe.
@@ -167,7 +169,7 @@ account.
 
 ## 9. Web pages
 
-- `/` browse cafes (search and sort).
+- `/` browse cafes (search, tag filters, sort, and pages; state is in the URL).
 - `/cafes/:id` cafe detail, reviews, photos, and the review form.
 - `/cafes/new` admin: add a cafe.
 - `/cafes/:id/edit` admin: edit an existing cafe.
