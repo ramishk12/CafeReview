@@ -21,7 +21,7 @@ import (
 
 func fetchReviewMock(m sqlmock.Sqlmock, id int, now time.Time) {
 	m.ExpectQuery(`FROM reviews r JOIN users u ON u.id = r.user_id WHERE r.id = \$1`).WithArgs(id).
-		WillReturnRows(sqlmock.NewRows(reviewCols).AddRow(id, 1, 7, "Demo User", 4, "Lovely.", now, now, now, 0))
+		WillReturnRows(sqlmock.NewRows(reviewCols).AddRow(id, 1, 7, "Demo User", 4, "Lovely.", now, now, now, 0, 0))
 	m.ExpectQuery(`FROM review_images`).WillReturnRows(sqlmock.NewRows(imageCols))
 	m.ExpectQuery(`FROM review_tags`).WillReturnRows(sqlmock.NewRows([]string{"review_id", "id", "name", "category", "scope"}))
 }

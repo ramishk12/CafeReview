@@ -25,7 +25,8 @@ const maxReviewBodyLength = 2000
 
 const reviewSelect = `
 	SELECT r.id, r.cafe_id, r.user_id, u.display_name, r.rating, r.body, r.visited_on, r.created_at, r.updated_at,
-	       (SELECT COUNT(*) FROM review_revisions rr WHERE rr.review_id = r.id)
+	       (SELECT COUNT(*) FROM review_revisions rr WHERE rr.review_id = r.id),
+	       (SELECT COUNT(*) FROM review_votes rv WHERE rv.review_id = r.id)
 	FROM reviews r
 	JOIN users u ON u.id = r.user_id`
 
@@ -127,7 +128,7 @@ func scanReview(row interface{ Scan(...any) error }) (models.Review, error) {
 	var visited time.Time
 	err := row.Scan(
 		&r.ID, &r.CafeID, &r.UserID, &r.AuthorName, &r.Rating, &r.Body,
-		&visited, &r.CreatedAt, &r.UpdatedAt, &r.RevisionCount,
+		&visited, &r.CreatedAt, &r.UpdatedAt, &r.RevisionCount, &r.HelpfulCount,
 	)
 	r.VisitedOn = visited.Format("2006-01-02")
 	return r, err

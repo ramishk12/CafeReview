@@ -142,6 +142,9 @@ export const createReview = (cafeId, review) => request(`/cafes/${cafeId}/review
 export const updateReview = (reviewId, review) => request(`/reviews/${reviewId}`, { method: 'PUT', body: review })
 export const deleteReview = (reviewId) => request(`/reviews/${reviewId}`, { method: 'DELETE' })
 export const getReviewRevisions = (reviewId) => request(`/reviews/${reviewId}/revisions`)
+export const voteReview = (reviewId) => request(`/reviews/${reviewId}/votes`, { method: 'POST' })
+export const unvoteReview = (reviewId) => request(`/reviews/${reviewId}/votes`, { method: 'DELETE' })
+export const listMyReviewVotes = (cafeId) => request(`/me/review-votes${cafeId ? `?cafe=${cafeId}` : ''}`)
 
 export function uploadReviewImage(reviewId, file) {
   const form = new FormData()

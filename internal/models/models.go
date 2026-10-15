@@ -78,6 +78,7 @@ type Review struct {
 	Images        []ReviewImage `json:"images"`
 	Tags          []Tag         `json:"tags"`
 	RevisionCount int           `json:"revision_count"`
+	HelpfulCount  int           `json:"helpful_count"`
 	CreatedAt     time.Time     `json:"created_at"`
 	UpdatedAt     time.Time     `json:"updated_at"`
 }
