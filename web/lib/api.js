@@ -98,6 +98,10 @@ export const deleteCafe = (id) => request(`/cafes/${id}`, { method: 'DELETE' })
 export const closeCafe = (id) => request(`/cafes/${id}/close`, { method: 'POST' })
 export const reopenCafe = (id) => request(`/cafes/${id}/reopen`, { method: 'POST' })
 
+// Tags
+export const listTags = (scope = 'cafe') => request(`/tags?scope=${encodeURIComponent(scope)}`)
+export const setCafeTags = (id, tagIds) => request(`/cafes/${id}/tags`, { method: 'PUT', body: { tag_ids: tagIds } })
+
 // Reviews
 export const createReview = (cafeId, review) => request(`/cafes/${cafeId}/reviews`, { method: 'POST', body: review })
 export const updateReview = (reviewId, review) => request(`/reviews/${reviewId}`, { method: 'PUT', body: review })

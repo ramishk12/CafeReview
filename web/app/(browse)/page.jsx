@@ -1,4 +1,4 @@
-import { listCafes } from '@/lib/serverApi'
+import { listCafes, listTags } from '@/lib/serverApi'
 import CafeBrowser from '@/components/CafeBrowser'
 
 export const metadata = {
@@ -7,7 +7,7 @@ export const metadata = {
 }
 
 export default async function HomePage() {
-  const cafes = await listCafes()
+  const [cafes, tags] = await Promise.all([listCafes(), listTags()])
   const reviewTotal = cafes.reduce((sum, c) => sum + c.review_count, 0)
 
   return (
@@ -26,7 +26,7 @@ export default async function HomePage() {
         </p>
       </div>
 
-      <CafeBrowser cafes={cafes} />
+      <CafeBrowser cafes={cafes} tags={tags} />
     </section>
   )
 }

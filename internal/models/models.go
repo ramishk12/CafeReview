@@ -29,6 +29,14 @@ type Cafe struct {
 	Closed        bool       `json:"closed"`
 	ClosedAt      *time.Time `json:"closed_at"`
 	CreatedAt     time.Time  `json:"created_at"`
+	Tags          []Tag      `json:"tags"`
+}
+
+type Tag struct {
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	Category string `json:"category"`
+	Scope    string `json:"scope"`
 }
 
 type Review struct {

@@ -10,5 +10,6 @@ async function get(path) {
 }
 
 export const listCafes = () => get('/cafes')
+export const listTags = () => get('/tags?scope=cafe')
 export const getCafe = (id) => get(`/cafes/${id}`)
 export const listReviews = (cafeId) => get(`/cafes/${cafeId}/reviews`)

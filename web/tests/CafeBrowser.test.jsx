@@ -60,6 +60,23 @@ describe('CafeBrowser', () => {
     expect(link).toHaveAttribute('href', '/cafes/3')
   })
 
+  it('filters cafes by tags with AND', () => {
+    const tagged = [
+      { id: 1, name: 'A', address: '', avg_rating: 0, review_count: 0, tags: [{ id: 10, name: 'Quiet' }, { id: 11, name: 'Matcha' }] },
+      { id: 2, name: 'B', address: '', avg_rating: 0, review_count: 0, tags: [{ id: 10, name: 'Quiet' }] },
+    ]
+    const tags = [
+      { id: 10, name: 'Quiet', category: 'vibe' },
+      { id: 11, name: 'Matcha', category: 'drinks' },
+    ]
+    render(<CafeBrowser cafes={tagged} tags={tags} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quiet' }))
+    expect(cardNames()).toEqual(['A', 'B'])
+    fireEvent.click(screen.getByRole('button', { name: 'Matcha' }))
+    expect(cardNames()).toEqual(['A'])
+  })
+
   it('shows a Closed badge on closed cafes', () => {
     render(<CafeBrowser cafes={[{ id: 9, name: 'Shut Cafe', address: '', avg_rating: 0, review_count: 0, closed: true }]} />)
     expect(screen.getByText('Closed')).toBeInTheDocument()

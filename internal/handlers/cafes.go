@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -61,8 +62,9 @@ func fetchCafe(id int) (models.Cafe, error) {
 		GROUP BY c.id`, id))
 }
 
-// ListCafes supports ?q= (name or address search), ?sort=, and optional ?limit= and ?offset=.
-// Without limit, every matching cafe is returned.
+// ListCafes supports ?q= (name or address search), ?tags= (comma-separated tag
+// IDs, matched with AND), ?sort=, and optional ?limit= and ?offset=. Without
+// limit, every matching cafe is returned.
 func ListCafes(c *gin.Context) {
 	orderBy, ok := orderByParam(c, cafeSortClauses, "name")
 	if !ok {
@@ -77,12 +79,31 @@ func ListCafes(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Search must be 100 characters or fewer"})
 		return
 	}
+	tagIDs, ok := parseTagIDs(c)
+	if !ok {
+		return
+	}
 
-	var where string
+	var conditions []string
 	var args []any
 	if search != "" {
-		where = ` WHERE c.name ILIKE $1 OR c.address ILIKE $1`
 		args = append(args, "%"+likeEscaper.Replace(search)+"%")
+		conditions = append(conditions, fmt.Sprintf("(c.name ILIKE $%d OR c.address ILIKE $%d)", len(args), len(args)))
+	}
+	if len(tagIDs) > 0 {
+		placeholders := make([]string, len(tagIDs))
+		for i, id := range tagIDs {
+			args = append(args, id)
+			placeholders[i] = fmt.Sprintf("$%d", len(args))
+		}
+		// A cafe must have every requested tag.
+		conditions = append(conditions, fmt.Sprintf(
+			`c.id IN (SELECT cafe_id FROM cafe_tags WHERE tag_id IN (%s) GROUP BY cafe_id HAVING COUNT(DISTINCT tag_id) = %d)`,
+			strings.Join(placeholders, ", "), len(tagIDs)))
+	}
+	where := ""
+	if len(conditions) > 0 {
+		where = " WHERE " + strings.Join(conditions, " AND ")
 	}
 
 	total, err := countRows(`SELECT COUNT(*) FROM cafes c`+where, args...)
@@ -91,8 +112,8 @@ func ListCafes(c *gin.Context) {
 		return
 	}
 
-	query, args := appendPaging(cafeSelect+where+` GROUP BY c.id ORDER BY `+orderBy, args, limit, offset, paged)
-	rows, err := database.DB.Query(query, args...)
+	query, queryArgs := appendPaging(cafeSelect+where+` GROUP BY c.id ORDER BY `+orderBy, args, limit, offset, paged)
+	rows, err := database.DB.Query(query, queryArgs...)
 	if err != nil {
 		apierror.Internal(c, err)
 		return
@@ -100,6 +121,7 @@ func ListCafes(c *gin.Context) {
 	defer rows.Close()
 
 	cafes := []models.Cafe{}
+	ids := []int{}
 	for rows.Next() {
 		cafe, err := scanCafe(rows)
 		if err != nil {
@@ -107,11 +129,25 @@ func ListCafes(c *gin.Context) {
 			return
 		}
 		cafes = append(cafes, cafe)
+		ids = append(ids, cafe.ID)
 	}
 	if err := rows.Err(); err != nil {
 		apierror.Internal(c, err)
 		return
 	}
+
+	tagsByCafe, err := loadTagsForCafes(ids)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	for i := range cafes {
+		cafes[i].Tags = tagsByCafe[cafes[i].ID]
+		if cafes[i].Tags == nil {
+			cafes[i].Tags = []models.Tag{}
+		}
+	}
+
 	setTotalCount(c, total)
 	c.JSON(http.StatusOK, cafes)
 }
@@ -130,6 +166,16 @@ func GetCafe(c *gin.Context) {
 	if err != nil {
 		apierror.Internal(c, err)
 		return
+	}
+
+	tagsByCafe, err := loadTagsForCafes([]int{id})
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	cafe.Tags = tagsByCafe[id]
+	if cafe.Tags == nil {
+		cafe.Tags = []models.Tag{}
 	}
 	c.JSON(http.StatusOK, cafe)
 }

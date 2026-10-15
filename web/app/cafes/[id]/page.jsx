@@ -2,6 +2,7 @@ import { ArrowLeft, MapPin } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import CafeAdminActions from '@/components/CafeAdminActions'
+import CafeTagEditor from '@/components/CafeTagEditor'
 import ReviewSection from '@/components/ReviewSection'
 import Stars from '@/components/Stars'
 import { getCafe, listReviews } from '@/lib/serverApi'
@@ -55,6 +56,15 @@ export default async function CafePage({ params }) {
             </p>
           )}
           {cafe.description && <p className="mt-3 max-w-2xl text-white/90">{cafe.description}</p>}
+          {cafe.tags?.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {cafe.tags.map((tag) => (
+                <span key={tag.id} className="rounded-full bg-white/20 px-3 py-1 text-xs font-medium backdrop-blur-sm">
+                  {tag.name}
+                </span>
+              ))}
+            </div>
+          )}
           <div className="mt-5 inline-flex items-center gap-3 rounded-2xl bg-white/15 px-4 py-2 backdrop-blur-sm">
             <span className="text-2xl font-bold">{hasReviews ? cafe.avg_rating.toFixed(1) : '–'}</span>
             <Stars value={cafe.avg_rating} size={18} />
@@ -69,6 +79,8 @@ export default async function CafePage({ params }) {
           still be deleted.
         </div>
       )}
+
+      <CafeTagEditor cafeId={cafe.id} initialTagIds={(cafe.tags ?? []).map((t) => t.id)} />
 
       <ReviewSection cafe={cafe} reviews={reviews} />
     </section>
