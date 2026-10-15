@@ -4,7 +4,8 @@ import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
-import { listTags } from '@/lib/api'
+import { useToast } from '@/context/ToastContext'
+import { listMyReviewVotes, listTags, unvoteReview, voteReview } from '@/lib/api'
 import PhotoLightbox from './PhotoLightbox'
 import ReviewCard from './ReviewCard'
 import ReviewForm from './ReviewForm'
@@ -15,6 +16,7 @@ const ORDERS = {
     label: 'Latest visit',
     compare: (a, b) => String(b.visited_on || '').localeCompare(String(a.visited_on || '')) || new Date(b.created_at) - new Date(a.created_at),
   },
+  helpful: { label: 'Most helpful', compare: (a, b) => (b.helpful_count || 0) - (a.helpful_count || 0) || new Date(b.created_at) - new Date(a.created_at) },
   highest: { label: 'Highest rated', compare: (a, b) => b.rating - a.rating || new Date(b.created_at) - new Date(a.created_at) },
   lowest: { label: 'Lowest rated', compare: (a, b) => a.rating - b.rating || new Date(b.created_at) - new Date(a.created_at) },
 }
@@ -37,6 +39,7 @@ export function reviewPhotos(review) {
 // in the URL so the view is shareable.
 export default function ReviewSection({ cafe, reviews }) {
   const { user } = useAuth()
+  const toast = useToast()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -46,12 +49,44 @@ export default function ReviewSection({ cafe, reviews }) {
   const [editingId, setEditingId] = useState(null)
   const [lightbox, setLightbox] = useState(null) // { images, index } or null
   const [reviewTags, setReviewTags] = useState([])
+  const [votes, setVotes] = useState({})
 
   useEffect(() => {
     listTags('review')
       .then(setReviewTags)
       .catch(() => {})
   }, [])
+
+  // Helpful counts start from the review payload; the signed-in user's own
+  // votes are filled in from a separate call.
+  useEffect(() => {
+    const initial = {}
+    for (const review of reviews) initial[review.id] = { voted: false, count: review.helpful_count || 0 }
+    setVotes(initial)
+  }, [reviews])
+
+  useEffect(() => {
+    if (!user) return
+    listMyReviewVotes(cafe.id)
+      .then((ids) =>
+        setVotes((current) => {
+          const next = { ...current }
+          for (const id of ids) if (next[id]) next[id] = { ...next[id], voted: true }
+          return next
+        }),
+      )
+      .catch(() => {})
+  }, [user, cafe.id, reviews])
+
+  const toggleVote = async (review) => {
+    const current = votes[review.id] || { voted: false, count: review.helpful_count || 0 }
+    try {
+      const result = current.voted ? await unvoteReview(review.id) : await voteReview(review.id)
+      setVotes((v) => ({ ...v, [review.id]: { voted: result.voted, count: result.helpful_count } }))
+    } catch (err) {
+      toast.show(err.message, 'error')
+    }
+  }
 
   const minRating = Number(searchParams.get('rating')) || 0
   const onlyPhotos = searchParams.get('photos') === '1'
@@ -230,6 +265,9 @@ export default function ReviewSection({ cafe, reviews }) {
                 <ReviewCard
                   review={review}
                   isOwner={user?.id === review.user_id}
+                  voted={votes[review.id]?.voted ?? false}
+                  helpfulCount={votes[review.id]?.count ?? review.helpful_count ?? 0}
+                  onVote={() => toggleVote(review)}
                   onOpenPhoto={(index) => openPhoto(reviewPhotos(review), index)}
                   onEdit={closed ? undefined : () => setEditingId(review.id)}
                 />

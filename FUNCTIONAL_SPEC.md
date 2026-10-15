@@ -96,6 +96,9 @@ current behaviour.
 - **Review tags:** a review can be tagged by its author with admin-curated
   visit tags (for example `Seasonal menu`, `Limited edition`, `Event`). Tags
   appear on the review and can be set in the review form.
+- **Helpful votes:** a signed-in user can mark another person's review helpful
+  and undo it (not their own). The count is shown on the review, and the review
+  list can be sorted by "Most helpful".
 - **Edit history:** each edit keeps the previous rating, text, and visit date.
   The review's author and admins can view earlier versions from the review
   ("Edited · view history"). Images are not versioned. Deleting a review removes
@@ -203,6 +206,9 @@ account.
 | POST | `/cafes/:id/reviews` | One per user per cafe per day. Body includes `visited_on` and optional `tag_ids` |
 | PUT | `/reviews/:id` | Owner only. Body includes rating, body, `visited_on`, and `tag_ids`. The previous version is saved |
 | GET | `/reviews/:id/revisions` | Author or admin. The review's earlier versions |
+| POST | `/reviews/:id/votes` | Signed-in. Marks a review helpful |
+| DELETE | `/reviews/:id/votes` | Signed-in. Removes the vote |
+| GET | `/me/review-votes` | Signed-in. Review IDs the user voted on; `?cafe=<id>` to filter |
 | DELETE | `/reviews/:id` | Owner only; also removes photos |
 | POST | `/reviews/:id/images` | Owner only |
 | DELETE | `/reviews/:id/images/:imageId` | Owner only |
@@ -235,12 +241,13 @@ account.
 - `review_image_tags`: image_id, tag_id.
 - `review_tags`: review_id, tag_id.
 - `review_revisions`: id, review_id, rating, body, visited_on, replaced_at.
+- `review_votes`: review_id, user_id.
 - `lists`: id, user_id, name, is_public, created_at.
 - `list_cafes`, `list_reviews`, `list_users`: list_id + the item id, added_at.
 
 ## 12. Not built yet
 
-Tracked as issues: city search and maps (#16), social sign-in (#33), account settings (#45), admin moderation (#35), reporting reviews (#40), helpful votes (#41), review drafts (#43), following cafes and email (#46), similar-cafe warning (#36), loading and empty states (#39), and the launch work: image storage (#9), Docker (#48), enforcing the CSP (#62), structured logging (#49), and accessibility (#50).
+Tracked as issues: city search and maps (#16), social sign-in (#33), account settings (#45), admin moderation (#35), reporting reviews (#40), review drafts (#43), following cafes and email (#46), similar-cafe warning (#36), loading and empty states (#39), and the launch work: image storage (#9), Docker (#48), enforcing the CSP (#62), structured logging (#49), and accessibility (#50).
 closing and archiving cafes, user lists, following cafes, social sign-in,
 account settings, public profiles, review reports and moderation, helpful votes,
 review edit history, review drafts, maps integration, Dockerfiles, structured

@@ -80,6 +80,9 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Signing in set
 | POST | `/cafes/:id/reviews` | One review per user per cafe per day. Body includes `visited_on` (YYYY-MM-DD, defaults to today) and optional `tag_ids` |
 | PUT | `/reviews/:id` | Owner only. The previous version is saved |
 | GET | `/reviews/:id/revisions` | Author or admin. The review's earlier versions |
+| POST | `/reviews/:id/votes` | Signed-in. Marks a review helpful |
+| DELETE | `/reviews/:id/votes` | Signed-in. Removes the vote |
+| GET | `/me/review-votes` | Signed-in. Review IDs the user voted on; `?cafe=<id>` to filter |
 | DELETE | `/reviews/:id` | Owner only. Also deletes the review's photo files |
 | POST | `/reviews/:id/images` | Owner only. Multipart field `image`: JPEG, PNG, or WebP, up to 5 MB. Privacy metadata (GPS, device, comments) is stripped on upload; colour profiles and orientation are kept |
 | DELETE | `/reviews/:id/images/:imageId` | Owner only. Removes one photo |

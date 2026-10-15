@@ -14,14 +14,14 @@ import (
 )
 
 var (
-	reviewCols = []string{"id", "cafe_id", "user_id", "display_name", "rating", "body", "visited_on", "created_at", "updated_at", "revision_count"}
+	reviewCols = []string{"id", "cafe_id", "user_id", "display_name", "rating", "body", "visited_on", "created_at", "updated_at", "revision_count", "helpful_count"}
 	imageCols  = []string{"id", "review_id", "filename", "created_at"}
 )
 
 func reviewListRows(now time.Time) *sqlmock.Rows {
 	return sqlmock.NewRows(reviewCols).
-		AddRow(10, 1, 7, "Demo User", 5, "Excellent.", now, now, now, 0).
-		AddRow(11, 1, 8, "Sam Lee", 3, "Fine.", now, now, now, 0)
+		AddRow(10, 1, 7, "Demo User", 5, "Excellent.", now, now, now, 0, 0).
+		AddRow(11, 1, 8, "Sam Lee", 3, "Fine.", now, now, now, 0, 0)
 }
 
 func TestListReviews(t *testing.T) {
@@ -80,7 +80,7 @@ func TestListReviews(t *testing.T) {
 			setupMock: func(m sqlmock.Sqlmock) {
 				m.ExpectQuery(`COUNT`).WithArgs(1).WillReturnRows(countRow(2))
 				m.ExpectQuery(`LIMIT \$2 OFFSET \$3`).WithArgs(1, 1, 1).
-					WillReturnRows(sqlmock.NewRows(reviewCols).AddRow(11, 1, 8, "Sam Lee", 3, "Fine.", now, now, now, 0))
+					WillReturnRows(sqlmock.NewRows(reviewCols).AddRow(11, 1, 8, "Sam Lee", 3, "Fine.", now, now, now, 0, 0))
 				m.ExpectQuery(`FROM review_images`).WillReturnRows(sqlmock.NewRows(imageCols))
 				m.ExpectQuery(`FROM review_tags`).WillReturnRows(sqlmock.NewRows([]string{"review_id", "id", "name", "category", "scope"}))
 			},

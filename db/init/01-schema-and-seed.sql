@@ -100,6 +100,14 @@ CREATE TABLE IF NOT EXISTS review_tags (
 );
 CREATE INDEX IF NOT EXISTS idx_review_tags_tag_id ON review_tags(tag_id);
 
+CREATE TABLE IF NOT EXISTS review_votes (
+    review_id INTEGER NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
+    PRIMARY KEY (review_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_review_votes_user_id ON review_votes(user_id);
+
 CREATE TABLE IF NOT EXISTS review_revisions (
     id SERIAL PRIMARY KEY,
     review_id INTEGER NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,

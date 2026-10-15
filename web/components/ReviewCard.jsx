@@ -1,6 +1,6 @@
 'use client'
 
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, ThumbsUp, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -13,7 +13,7 @@ import Avatar from './Avatar'
 import ReviewImageTagger from './ReviewImageTagger'
 import Stars from './Stars'
 
-export default function ReviewCard({ review, isOwner, onOpenPhoto, onEdit }) {
+export default function ReviewCard({ review, isOwner, voted = false, helpfulCount = 0, onVote, onOpenPhoto, onEdit }) {
   const router = useRouter()
   const toast = useToast()
   const { user, isAdmin } = useAuth()
@@ -125,6 +125,20 @@ export default function ReviewCard({ review, isOwner, onOpenPhoto, onEdit }) {
 
       {user && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
+          {!isOwner && (
+            <button
+              type="button"
+              onClick={onVote}
+              aria-pressed={voted}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm transition ${
+                voted
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/20'
+              }`}
+            >
+              <ThumbsUp size={14} aria-hidden="true" /> Helpful{helpfulCount > 0 ? ` (${helpfulCount})` : ''}
+            </button>
+          )}
           <AddToListButton type="review" id={review.id} label="Save review" />
           <AddToListButton type="user" id={review.user_id} label="Save reviewer" />
         </div>
