@@ -60,6 +60,11 @@ describe('CafeBrowser', () => {
     expect(link).toHaveAttribute('href', '/cafes/3')
   })
 
+  it('shows a Closed badge on closed cafes', () => {
+    render(<CafeBrowser cafes={[{ id: 9, name: 'Shut Cafe', address: '', avg_rating: 0, review_count: 0, closed: true }]} />)
+    expect(screen.getByText('Closed')).toBeInTheDocument()
+  })
+
   it('shows an admin edit quick-action only to admins', () => {
     render(<CafeBrowser cafes={cafes} />)
     expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument()

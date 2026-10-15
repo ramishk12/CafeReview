@@ -48,6 +48,8 @@ func NewRouter(uploadDir string) *gin.Engine {
 	admin := authed.Group("")
 	admin.Use(auth.RequireAdmin())
 	admin.POST("/cafes", handlers.CreateCafe)
+	admin.POST("/cafes/:id/close", handlers.CloseCafe)
+	admin.POST("/cafes/:id/reopen", handlers.ReopenCafe)
 	admin.PUT("/cafes/:id", handlers.UpdateCafe)
 	admin.DELETE("/cafes/:id", handlers.DeleteCafe)
 

@@ -28,6 +28,7 @@ export function reviewPhotos(review) {
 // own reviews can be edited in place.
 export default function ReviewSection({ cafe, reviews }) {
   const { user } = useAuth()
+  const closed = Boolean(cafe.closed)
   const [order, setOrder] = useState('newest')
   const [editingId, setEditingId] = useState(null)
   const [lightbox, setLightbox] = useState(null) // { images, index } or null
@@ -42,7 +43,11 @@ export default function ReviewSection({ cafe, reviews }) {
 
   return (
     <>
-      {user ? (
+      {closed ? (
+        <div className="card mb-10 p-6 text-slate-600 dark:text-slate-300">
+          This cafe is closed, so it is no longer accepting new reviews.
+        </div>
+      ) : user ? (
         editingId === null && (
           <div className="mb-10">
             <ReviewForm key="new" cafeId={cafe.id} />
@@ -108,7 +113,7 @@ export default function ReviewSection({ cafe, reviews }) {
                   review={review}
                   isOwner={user?.id === review.user_id}
                   onOpenPhoto={(index) => openPhoto(reviewPhotos(review), index)}
-                  onEdit={() => setEditingId(review.id)}
+                  onEdit={closed ? undefined : () => setEditingId(review.id)}
                 />
               )}
             </li>

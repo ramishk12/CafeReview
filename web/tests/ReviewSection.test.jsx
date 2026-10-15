@@ -84,6 +84,14 @@ describe('ReviewSection', () => {
     expect(screen.getAllByRole('button', { name: /^delete$/i })).toHaveLength(1)
   })
 
+  it('shows a closed notice and hides the add and edit actions for a closed cafe', () => {
+    authState = { user: { id: 7, display_name: 'Demo User', role: 'user' } }
+    render(<ReviewSection cafe={{ id: 1, name: 'Bean There', closed: true }} reviews={reviews} />)
+    expect(screen.getByText(/no longer accepting new reviews/i)).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Write a review' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
+  })
+
   it('shows an empty state with no reviews', () => {
     render(<ReviewSection cafe={cafe} reviews={[]} />)
     expect(screen.getByText('No reviews yet. Be the first.')).toBeInTheDocument()

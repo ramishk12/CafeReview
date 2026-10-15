@@ -16,7 +16,7 @@ import (
 )
 
 const cafeSelect = `
-	SELECT c.id, c.name, c.address, c.description, c.created_at,
+	SELECT c.id, c.name, c.address, c.description, c.created_at, c.closed_at,
 	       COALESCE(AVG(r.rating), 0), COUNT(r.id), COUNT(DISTINCT r.user_id)
 	FROM cafes c
 	LEFT JOIN reviews r ON r.cafe_id = c.id`
@@ -42,10 +42,15 @@ func parseID(c *gin.Context, name string) (int, bool) {
 
 func scanCafe(row interface{ Scan(...any) error }) (models.Cafe, error) {
 	var cafe models.Cafe
+	var closedAt sql.NullTime
 	err := row.Scan(
-		&cafe.ID, &cafe.Name, &cafe.Address, &cafe.Description, &cafe.CreatedAt,
+		&cafe.ID, &cafe.Name, &cafe.Address, &cafe.Description, &cafe.CreatedAt, &closedAt,
 		&cafe.AvgRating, &cafe.ReviewCount, &cafe.ReviewerCount,
 	)
+	if closedAt.Valid {
+		cafe.Closed = true
+		cafe.ClosedAt = &closedAt.Time
+	}
 	return cafe, err
 }
 
@@ -256,4 +261,48 @@ func DeleteCafe(c *gin.Context) {
 
 	removeImageFiles(filenames) // best effort; the rows are already gone
 	c.Status(http.StatusNoContent)
+}
+
+// CloseCafe marks a cafe closed. Closed cafes keep their reviews but accept no
+// new reviews and no edits. Admin-only.
+func CloseCafe(c *gin.Context) {
+	setCafeClosed(c, true)
+}
+
+// ReopenCafe clears a cafe's closed state. Admin-only.
+func ReopenCafe(c *gin.Context) {
+	setCafeClosed(c, false)
+}
+
+func setCafeClosed(c *gin.Context, closed bool) {
+	id, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+
+	query := `UPDATE cafes SET closed_at = NULL WHERE id = $1`
+	if closed {
+		query = `UPDATE cafes SET closed_at = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC') WHERE id = $1`
+	}
+	res, err := database.DB.Exec(query, id)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	if affected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Cafe not found"})
+		return
+	}
+
+	cafe, err := fetchCafe(id)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, cafe)
 }
