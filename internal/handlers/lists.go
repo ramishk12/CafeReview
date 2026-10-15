@@ -356,15 +356,15 @@ func RemoveCafeFromList(c *gin.Context) {
 func cafesInList(listID int) ([]models.Cafe, error) {
 	rows, err := database.DB.Query(`
 		SELECT c.id, c.name, c.address, c.description, c.created_at, c.closed_at,
-		       c.background_image_id, c.background_image_path, bri.filename,
+		       c.background_image_id, c.background_image_path,
+		       (SELECT ri.filename FROM review_images ri WHERE ri.id = c.background_image_id),
 		       COALESCE(AVG(r.rating), 0), COUNT(r.id), COUNT(DISTINCT r.user_id)
 		FROM list_cafes lc
 		JOIN cafes c ON c.id = lc.cafe_id
-		LEFT JOIN review_images bri ON bri.id = c.background_image_id
 		LEFT JOIN reviews r ON r.cafe_id = c.id
 		WHERE lc.list_id = $1
 		GROUP BY c.id
-		ORDER BY lc.added_at DESC`, listID)
+		ORDER BY MIN(lc.added_at) DESC`, listID)
 	if err != nil {
 		return nil, err
 	}

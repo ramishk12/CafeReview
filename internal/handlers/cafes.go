@@ -16,12 +16,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// cafeSelect is grouped by c.id, so every selected column must come from cafes
+// or be an aggregate. The background filename is fetched with a scalar subquery
+// rather than a join, because a joined column cannot be selected under GROUP BY c.id.
 const cafeSelect = `
 	SELECT c.id, c.name, c.address, c.description, c.created_at, c.closed_at,
-	       c.background_image_id, c.background_image_path, bri.filename,
+	       c.background_image_id, c.background_image_path,
+	       (SELECT ri.filename FROM review_images ri WHERE ri.id = c.background_image_id),
 	       COALESCE(AVG(r.rating), 0), COUNT(r.id), COUNT(DISTINCT r.user_id)
 	FROM cafes c
-	LEFT JOIN review_images bri ON bri.id = c.background_image_id
 	LEFT JOIN reviews r ON r.cafe_id = c.id`
 
 // cafeSortClauses maps the accepted ?sort= values to ORDER BY clauses.
