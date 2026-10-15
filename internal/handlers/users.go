@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
-	"time"
 
 	"cafe-review/internal/apierror"
 	"cafe-review/internal/database"
@@ -95,15 +94,11 @@ func ListUserReviews(c *gin.Context) {
 	reviews := []models.Review{}
 	ids := []int{}
 	for rows.Next() {
-		var r models.Review
-		var visited time.Time
-		if err := rows.Scan(
-			&r.ID, &r.CafeID, &r.CafeName, &r.UserID, &r.AuthorName, &r.Rating, &r.Body, &visited, &r.CreatedAt, &r.UpdatedAt,
-		); err != nil {
+		r, err := scanReviewWithCafe(rows)
+		if err != nil {
 			apierror.Internal(c, err)
 			return
 		}
-		r.VisitedOn = visited.Format("2006-01-02")
 		reviews = append(reviews, r)
 		ids = append(ids, r.ID)
 	}

@@ -37,17 +37,26 @@ type Cafe struct {
 }
 
 type List struct {
-	ID           int       `json:"id"`
-	Name         string    `json:"name"`
-	IsPublic     bool      `json:"is_public"`
-	CafeCount    int       `json:"cafe_count"`
-	ContainsCafe bool      `json:"contains_cafe"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID             int       `json:"id"`
+	Name           string    `json:"name"`
+	IsPublic       bool      `json:"is_public"`
+	CafeCount      int       `json:"cafe_count"`
+	ContainsCafe   bool      `json:"contains_cafe"`
+	ContainsUser   bool      `json:"contains_user"`
+	ContainsReview bool      `json:"contains_review"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type ListDetail struct {
 	List
-	Cafes []Cafe `json:"cafes"`
+	Cafes   []Cafe        `json:"cafes"`
+	Users   []UserSummary `json:"users"`
+	Reviews []Review      `json:"reviews"`
+}
+
+type UserSummary struct {
+	ID          int    `json:"id"`
+	DisplayName string `json:"display_name"`
 }
 
 type Tag struct {

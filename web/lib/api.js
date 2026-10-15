@@ -118,13 +118,24 @@ export const setReviewImageTags = (imageId, tagIds) =>
   request(`/review-images/${imageId}/tags`, { method: 'PUT', body: { tag_ids: tagIds } })
 
 // Lists
-export const listMyLists = (cafeId) => request(`/me/lists${cafeId ? `?cafe=${cafeId}` : ''}`)
+export const listMyLists = (query = {}) => {
+  const params = new URLSearchParams()
+  if (query.cafe) params.set('cafe', query.cafe)
+  if (query.user) params.set('user', query.user)
+  if (query.review) params.set('review', query.review)
+  const qs = params.toString()
+  return request(`/me/lists${qs ? `?${qs}` : ''}`)
+}
 export const createList = (name) => request('/me/lists', { method: 'POST', body: { name } })
 export const getList = (id) => request(`/lists/${id}`)
 export const renameList = (id, name) => request(`/lists/${id}`, { method: 'PUT', body: { name } })
 export const deleteList = (id) => request(`/lists/${id}`, { method: 'DELETE' })
 export const addCafeToList = (listId, cafeId) => request(`/lists/${listId}/cafes`, { method: 'POST', body: { cafe_id: cafeId } })
 export const removeCafeFromList = (listId, cafeId) => request(`/lists/${listId}/cafes/${cafeId}`, { method: 'DELETE' })
+export const addUserToList = (listId, userId) => request(`/lists/${listId}/users`, { method: 'POST', body: { user_id: userId } })
+export const removeUserFromList = (listId, userId) => request(`/lists/${listId}/users/${userId}`, { method: 'DELETE' })
+export const addReviewToList = (listId, reviewId) => request(`/lists/${listId}/reviews`, { method: 'POST', body: { review_id: reviewId } })
+export const removeReviewFromList = (listId, reviewId) => request(`/lists/${listId}/reviews/${reviewId}`, { method: 'DELETE' })
 
 // Reviews
 export const createReview = (cafeId, review) => request(`/cafes/${cafeId}/reviews`, { method: 'POST', body: review })

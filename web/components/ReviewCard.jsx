@@ -6,7 +6,9 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { deleteReview } from '@/lib/api'
 import { formatDate } from '@/lib/cafeTheme'
+import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
+import AddToListButton from './AddToListButton'
 import Avatar from './Avatar'
 import ReviewImageTagger from './ReviewImageTagger'
 import Stars from './Stars'
@@ -14,6 +16,7 @@ import Stars from './Stars'
 export default function ReviewCard({ review, isOwner, onOpenPhoto, onEdit }) {
   const router = useRouter()
   const toast = useToast()
+  const { user } = useAuth()
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
 
@@ -82,6 +85,13 @@ export default function ReviewCard({ review, isOwner, onOpenPhoto, onEdit }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {user && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <AddToListButton type="review" id={review.id} label="Save review" />
+          <AddToListButton type="user" id={review.user_id} label="Save reviewer" />
+        </div>
       )}
 
       {isOwner && (
