@@ -28,9 +28,9 @@ CREATE TABLE IF NOT EXISTS reviews (
     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
     body TEXT NOT NULL,
+    visited_on DATE NOT NULL DEFAULT (CURRENT_DATE),
     created_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
-    updated_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
-    CONSTRAINT reviews_user_cafe_unique UNIQUE (user_id, cafe_id)
+    updated_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
 );
 
 CREATE TABLE IF NOT EXISTS review_images (
@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS email_tokens (
     created_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
 );
 CREATE INDEX IF NOT EXISTS idx_email_tokens_user_id ON email_tokens(user_id);
+-- One review per user per cafe per day, so a user can record each visit.
+CREATE UNIQUE INDEX IF NOT EXISTS reviews_user_cafe_visit_unique ON reviews(user_id, cafe_id, visited_on);
 CREATE INDEX IF NOT EXISTS idx_reviews_cafe_id ON reviews(cafe_id);
 CREATE INDEX IF NOT EXISTS idx_review_images_review_id ON review_images(review_id);
 

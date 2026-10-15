@@ -2,6 +2,8 @@
 
 Cafe reviews with user accounts and picture uploads.
 
+See [FUNCTIONAL_SPEC.md](FUNCTIONAL_SPEC.md) for a full description of current features.
+
 ## Stack
 - Backend: Go, Gin, PostgreSQL
 - Frontend: Next.js (App Router), React, Tailwind CSS
@@ -53,7 +55,7 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Signing in set
 | PUT | `/cafes/:id` | Admin. Replaces name, address, and description |
 | DELETE | `/cafes/:id` | Admin. Also deletes the cafe's reviews and photo files |
 | GET | `/cafes/:id/reviews` | Query: `sort` (`newest`, `highest`, `lowest`; default `newest`), `limit` (1-100), `offset` |
-| POST | `/cafes/:id/reviews` | One review per user per cafe |
+| POST | `/cafes/:id/reviews` | One review per user per cafe per day. Body includes `visited_on` (YYYY-MM-DD, defaults to today) |
 | PUT | `/reviews/:id` | Owner only |
 | DELETE | `/reviews/:id` | Owner only. Also deletes the review's photo files |
 | POST | `/reviews/:id/images` | Owner only. Multipart field `image`: JPEG, PNG, or WebP, up to 5 MB. Privacy metadata (GPS, device, comments) is stripped on upload; colour profiles and orientation are kept |

@@ -36,7 +36,9 @@ export function formatDate(value) {
   return new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' })
 }
 
-export function ratingLabel(count, average) {
-  if (!count) return 'No reviews yet'
-  return `${count} ${count === 1 ? 'review' : 'reviews'}${average ? ` · ${average.toFixed(1)} avg` : ''}`
+export function ratingLabel(reviewCount, reviewerCount = 0) {
+  if (!reviewCount) return 'No reviews yet'
+  const reviews = `${reviewCount} ${reviewCount === 1 ? 'review' : 'reviews'}`
+  if (!reviewerCount) return reviews
+  return `${reviews} from ${reviewerCount} ${reviewerCount === 1 ? 'person' : 'people'}`
 }

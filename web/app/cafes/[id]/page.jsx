@@ -47,7 +47,7 @@ export default async function CafePage({ params }) {
           <div className="mt-5 inline-flex items-center gap-3 rounded-2xl bg-white/15 px-4 py-2 backdrop-blur-sm">
             <span className="text-2xl font-bold">{hasReviews ? cafe.avg_rating.toFixed(1) : '–'}</span>
             <Stars value={cafe.avg_rating} size={18} />
-            <span className="text-sm text-white/85">{ratingLabel(cafe.review_count)}</span>
+            <span className="text-sm text-white/85">{ratingLabel(cafe.review_count, cafe.reviewer_count)}</span>
           </div>
         </div>
       </header>

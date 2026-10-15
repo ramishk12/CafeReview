@@ -17,7 +17,7 @@ import (
 
 const cafeSelect = `
 	SELECT c.id, c.name, c.address, c.description, c.created_at,
-	       COALESCE(AVG(r.rating), 0), COUNT(r.id)
+	       COALESCE(AVG(r.rating), 0), COUNT(r.id), COUNT(DISTINCT r.user_id)
 	FROM cafes c
 	LEFT JOIN reviews r ON r.cafe_id = c.id`
 
@@ -44,7 +44,7 @@ func scanCafe(row interface{ Scan(...any) error }) (models.Cafe, error) {
 	var cafe models.Cafe
 	err := row.Scan(
 		&cafe.ID, &cafe.Name, &cafe.Address, &cafe.Description, &cafe.CreatedAt,
-		&cafe.AvgRating, &cafe.ReviewCount,
+		&cafe.AvgRating, &cafe.ReviewCount, &cafe.ReviewerCount,
 	)
 	return cafe, err
 }

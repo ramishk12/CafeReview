@@ -42,10 +42,27 @@ func Migrate() error {
 			user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 			rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
 			body TEXT NOT NULL,
+			visited_on DATE NOT NULL DEFAULT (CURRENT_DATE),
 			created_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
-			updated_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
-			CONSTRAINT reviews_user_cafe_unique UNIQUE (user_id, cafe_id)
+			updated_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
 		)`,
+		// Reviews used to be one per user per cafe. They are now one per user per
+		// cafe per day, so a user can record each visit. Existing databases keep
+		// their rows: visited_on is backfilled from created_at.
+		`ALTER TABLE reviews DROP CONSTRAINT IF EXISTS reviews_user_cafe_unique`,
+		`DO $$
+		BEGIN
+			IF NOT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name = 'reviews' AND column_name = 'visited_on'
+			) THEN
+				ALTER TABLE reviews ADD COLUMN visited_on DATE;
+				UPDATE reviews SET visited_on = (created_at AT TIME ZONE 'UTC')::date;
+				ALTER TABLE reviews ALTER COLUMN visited_on SET NOT NULL;
+				ALTER TABLE reviews ALTER COLUMN visited_on SET DEFAULT (CURRENT_DATE);
+			END IF;
+		END $$;`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS reviews_user_cafe_visit_unique ON reviews(user_id, cafe_id, visited_on)`,
 		`CREATE TABLE IF NOT EXISTS review_images (
 			id SERIAL PRIMARY KEY,
 			review_id INTEGER NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
