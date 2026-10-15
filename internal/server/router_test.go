@@ -34,6 +34,8 @@ func TestRouterRegistersNewRoutes(t *testing.T) {
 	assert.True(t, hasRoute(r, http.MethodDelete, "/api/cafes/:id"), "DELETE /api/cafes/:id")
 	assert.True(t, hasRoute(r, http.MethodDelete, "/api/reviews/:id/images/:imageId"), "DELETE /api/reviews/:id/images/:imageId")
 	assert.True(t, hasRoute(r, http.MethodPost, "/api/auth/logout"), "POST /api/auth/logout")
+	assert.True(t, hasRoute(r, http.MethodGet, "/api/tags"), "GET /api/tags")
+	assert.True(t, hasRoute(r, http.MethodPut, "/api/cafes/:id/tags"), "PUT /api/cafes/:id/tags")
 }
 
 func TestPublicAndReviewRoutes(t *testing.T) {

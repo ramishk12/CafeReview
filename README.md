@@ -49,13 +49,15 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Signing in set
 | POST | `/auth/verify/resend` | Body: `email`. Sends a new link if needed; response is always the same |
 | POST | `/auth/login` | Blocked with `403` until the email is confirmed |
 | POST | `/auth/logout` | Deletes the session |
-| GET | `/cafes` | Query: `q` (search name or address, max 100 chars), `sort` (`name`, `rating`, `reviews`, `newest`; default `name`), `limit` (1-100), `offset` |
+| GET | `/cafes` | Query: `q` (search name or address, max 100 chars), `tags` (comma-separated tag IDs, AND), `sort` (`name`, `rating`, `reviews`, `newest`; default `name`), `limit` (1-100), `offset` |
 | GET | `/cafes/:id` | |
+| GET | `/tags` | Query: `scope` (`cafe`, `review`, `image`). Approved tags only |
 | POST | `/cafes` | Admin |
 | PUT | `/cafes/:id` | Admin. Replaces name, address, and description |
 | DELETE | `/cafes/:id` | Admin. Also deletes the cafe's reviews and photo files |
 | POST | `/cafes/:id/close` | Admin. Closed cafes accept no new reviews and no review edits |
 | POST | `/cafes/:id/reopen` | Admin |
+| PUT | `/cafes/:id/tags` | Admin. Body: `{"tag_ids": [...]}`, replaces the set |
 | GET | `/cafes/:id/reviews` | Query: `sort` (`newest`, `highest`, `lowest`; default `newest`), `limit` (1-100), `offset` |
 | POST | `/cafes/:id/reviews` | One review per user per cafe per day. Body includes `visited_on` (YYYY-MM-DD, defaults to today) |
 | PUT | `/reviews/:id` | Owner only |

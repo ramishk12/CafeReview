@@ -2,6 +2,38 @@ package database
 
 import "fmt"
 
+// SeedTags inserts the starter cafe tags when the tags table is empty.
+func SeedTags() error {
+	var count int
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM tags`).Scan(&count); err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+
+	tags := []struct{ name, category string }{
+		{"Downtown", "location"},
+		{"Near campus", "location"},
+		{"Waterfront", "location"},
+		{"Quiet", "vibe"},
+		{"Lively", "vibe"},
+		{"Study-friendly", "vibe"},
+		{"Cozy", "vibe"},
+		{"Espresso", "drinks"},
+		{"Pour-over", "drinks"},
+		{"Cold brew", "drinks"},
+		{"Matcha", "drinks"},
+		{"Tea", "drinks"},
+	}
+	for _, t := range tags {
+		if _, err := DB.Exec(`INSERT INTO tags (name, category, scope) VALUES ($1, $2, 'cafe')`, t.name, t.category); err != nil {
+			return fmt.Errorf("seed tag %q: %w", t.name, err)
+		}
+	}
+	return nil
+}
+
 // SeedCafes inserts sample cafes when the cafes table is empty.
 func SeedCafes() error {
 	var count int

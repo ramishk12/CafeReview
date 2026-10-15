@@ -11,19 +11,36 @@ const SORTS = {
   name: { label: 'A–Z', compare: (a, b) => a.name.localeCompare(b.name) },
 }
 
-// Search and sort run in the browser; the list itself is fetched on the server.
-export default function CafeBrowser({ cafes }) {
+// Search, tag filtering, and sort run in the browser; the list and the tag list
+// are fetched on the server. Tags are matched with AND: a cafe must have every
+// selected tag.
+export default function CafeBrowser({ cafes, tags = [] }) {
   const { isAdmin } = useAuth()
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState('rating')
+  const [selectedTags, setSelectedTags] = useState([])
+
+  const toggleTag = (id) =>
+    setSelectedTags((current) => (current.includes(id) ? current.filter((t) => t !== id) : [...current, id]))
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const matches = q
-      ? cafes.filter((c) => c.name.toLowerCase().includes(q) || (c.address || '').toLowerCase().includes(q))
-      : cafes
+    const matches = cafes.filter((c) => {
+      if (q && !(c.name.toLowerCase().includes(q) || (c.address || '').toLowerCase().includes(q))) return false
+      if (selectedTags.length > 0) {
+        const ids = new Set((c.tags || []).map((t) => t.id))
+        if (!selectedTags.every((id) => ids.has(id))) return false
+      }
+      return true
+    })
     return [...matches].sort(SORTS[sort].compare)
-  }, [cafes, query, sort])
+  }, [cafes, query, sort, selectedTags])
+
+  const tagGroups = useMemo(() => {
+    const groups = {}
+    for (const t of tags) (groups[t.category] ||= []).push(t)
+    return Object.entries(groups)
+  }, [tags])
 
   return (
     <div>
@@ -51,6 +68,34 @@ export default function CafeBrowser({ cafes }) {
           </select>
         </label>
       </div>
+
+      {tagGroups.length > 0 && (
+        <div className="mb-6 flex flex-col gap-2">
+          {tagGroups.map(([category, list]) => (
+            <div key={category} className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold tracking-wide text-slate-400 uppercase">{category}</span>
+              {list.map((tag) => {
+                const active = selectedTags.includes(tag.id)
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => toggleTag(tag.id)}
+                    aria-pressed={active}
+                    className={`rounded-full px-3 py-1 text-sm transition ${
+                      active
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/20'
+                    }`}
+                  >
+                    {tag.name}
+                  </button>
+                )
+              })}
+            </div>
+          ))}
+        </div>
+      )}
 
       {visible.length === 0 ? (
         <p className="card py-16 text-center text-slate-500">

@@ -29,6 +29,10 @@ func countRow(n int) *sqlmock.Rows {
 	return sqlmock.NewRows([]string{"count"}).AddRow(n)
 }
 
+func tagRows() *sqlmock.Rows {
+	return sqlmock.NewRows([]string{"cafe_id", "id", "name", "category", "scope"})
+}
+
 func TestListCafes(t *testing.T) {
 	now := time.Now()
 
@@ -46,6 +50,7 @@ func TestListCafes(t *testing.T) {
 			setupMock: func(m sqlmock.Sqlmock) {
 				m.ExpectQuery(`SELECT COUNT\(\*\) FROM cafes c`).WillReturnRows(countRow(2))
 				m.ExpectQuery(`ORDER BY c\.name ASC, c\.id ASC`).WillReturnRows(cafeListRows(now))
+				m.ExpectQuery(`FROM cafe_tags`).WillReturnRows(tagRows())
 			},
 			expectedStatus: http.StatusOK,
 			expectedTotal:  "2",
@@ -55,12 +60,13 @@ func TestListCafes(t *testing.T) {
 			name:   "Searches name and address case-insensitively",
 			target: "/api/cafes?q=bean",
 			setupMock: func(m sqlmock.Sqlmock) {
-				m.ExpectQuery(`WHERE c\.name ILIKE \$1 OR c\.address ILIKE \$1`).
+				m.ExpectQuery(`WHERE \(c\.name ILIKE \$1 OR c\.address ILIKE \$1\)`).
 					WithArgs("%bean%").
 					WillReturnRows(countRow(1))
-				m.ExpectQuery(`WHERE c\.name ILIKE \$1 OR c\.address ILIKE \$1`).
+				m.ExpectQuery(`WHERE \(c\.name ILIKE \$1 OR c\.address ILIKE \$1\)`).
 					WithArgs("%bean%").
 					WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, nil, 4.5, 2, 2))
+				m.ExpectQuery(`FROM cafe_tags`).WillReturnRows(tagRows())
 			},
 			expectedStatus: http.StatusOK,
 			expectedTotal:  "1",
@@ -83,6 +89,7 @@ func TestListCafes(t *testing.T) {
 			setupMock: func(m sqlmock.Sqlmock) {
 				m.ExpectQuery(`COUNT`).WillReturnRows(countRow(2))
 				m.ExpectQuery(`ORDER BY c\.created_at DESC, c\.id DESC`).WillReturnRows(cafeListRows(now))
+				m.ExpectQuery(`FROM cafe_tags`).WillReturnRows(tagRows())
 			},
 			expectedStatus: http.StatusOK,
 			expectedTotal:  "2",
@@ -94,10 +101,29 @@ func TestListCafes(t *testing.T) {
 			setupMock: func(m sqlmock.Sqlmock) {
 				m.ExpectQuery(`COUNT`).WillReturnRows(countRow(5))
 				m.ExpectQuery(`LIMIT \$1 OFFSET \$2`).WithArgs(2, 4).WillReturnRows(cafeListRows(now))
+				m.ExpectQuery(`FROM cafe_tags`).WillReturnRows(tagRows())
 			},
 			expectedStatus: http.StatusOK,
 			expectedTotal:  "5",
 			expectedCount:  2,
+		},
+		{
+			name:   "Filters by tags with AND",
+			target: "/api/cafes?tags=1,2",
+			setupMock: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery(`COUNT`).WithArgs(1, 2).WillReturnRows(countRow(2))
+				m.ExpectQuery(`HAVING COUNT\(DISTINCT tag_id\) = 2`).WithArgs(1, 2).WillReturnRows(cafeListRows(now))
+				m.ExpectQuery(`FROM cafe_tags`).WillReturnRows(tagRows())
+			},
+			expectedStatus: http.StatusOK,
+			expectedTotal:  "2",
+			expectedCount:  2,
+		},
+		{
+			name:           "Rejects invalid tag IDs",
+			target:         "/api/cafes?tags=abc",
+			setupMock:      func(sqlmock.Sqlmock) {},
+			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name:           "Rejects an unknown sort",

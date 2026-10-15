@@ -25,6 +25,7 @@ func TestGetCafe(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
 			m.ExpectQuery(`WHERE c\.id = \$1`).WithArgs(1).
 				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "Pour-overs.", now, nil, 4.5, 2, 2))
+			m.ExpectQuery(`FROM cafe_tags`).WithArgs(1).WillReturnRows(tagRows())
 
 			c, w := newTestContext(t, http.MethodGet, "/api/cafes/1", nil, params, 0, "")
 			GetCafe(c)

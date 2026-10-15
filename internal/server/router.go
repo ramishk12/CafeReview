@@ -35,6 +35,7 @@ func NewRouter(uploadDir string) *gin.Engine {
 	authed.GET("/auth/me", auth.Me)
 	authed.POST("/auth/logout", auth.Logout)
 
+	api.GET("/tags", handlers.ListTags)
 	api.GET("/cafes", handlers.ListCafes)
 	api.GET("/cafes/:id", handlers.GetCafe)
 	api.GET("/cafes/:id/reviews", handlers.ListReviews)
@@ -48,6 +49,7 @@ func NewRouter(uploadDir string) *gin.Engine {
 	admin := authed.Group("")
 	admin.Use(auth.RequireAdmin())
 	admin.POST("/cafes", handlers.CreateCafe)
+	admin.PUT("/cafes/:id/tags", handlers.SetCafeTags)
 	admin.POST("/cafes/:id/close", handlers.CloseCafe)
 	admin.POST("/cafes/:id/reopen", handlers.ReopenCafe)
 	admin.PUT("/cafes/:id", handlers.UpdateCafe)

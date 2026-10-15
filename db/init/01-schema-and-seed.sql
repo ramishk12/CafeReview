@@ -66,8 +66,40 @@ CREATE TABLE IF NOT EXISTS email_tokens (
 CREATE INDEX IF NOT EXISTS idx_email_tokens_user_id ON email_tokens(user_id);
 -- One review per user per cafe per day, so a user can record each visit.
 CREATE UNIQUE INDEX IF NOT EXISTS reviews_user_cafe_visit_unique ON reviews(user_id, cafe_id, visited_on);
+CREATE TABLE IF NOT EXISTS tags (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    category VARCHAR(50) NOT NULL,
+    scope VARCHAR(20) NOT NULL DEFAULT 'cafe' CHECK (scope IN ('cafe', 'review', 'image')),
+    status VARCHAR(20) NOT NULL DEFAULT 'approved' CHECK (status IN ('approved', 'pending')),
+    created_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
+    UNIQUE (scope, name)
+);
+
+CREATE TABLE IF NOT EXISTS cafe_tags (
+    cafe_id INTEGER NOT NULL REFERENCES cafes(id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (cafe_id, tag_id)
+);
+CREATE INDEX IF NOT EXISTS idx_cafe_tags_tag_id ON cafe_tags(tag_id);
+
 CREATE INDEX IF NOT EXISTS idx_reviews_cafe_id ON reviews(cafe_id);
 CREATE INDEX IF NOT EXISTS idx_review_images_review_id ON review_images(review_id);
+
+-- Starter cafe tags. Shared with review and image tags through the scope column.
+INSERT INTO tags (name, category, scope) VALUES
+    ('Downtown', 'location', 'cafe'),
+    ('Near campus', 'location', 'cafe'),
+    ('Waterfront', 'location', 'cafe'),
+    ('Quiet', 'vibe', 'cafe'),
+    ('Lively', 'vibe', 'cafe'),
+    ('Study-friendly', 'vibe', 'cafe'),
+    ('Cozy', 'vibe', 'cafe'),
+    ('Espresso', 'drinks', 'cafe'),
+    ('Pour-over', 'drinks', 'cafe'),
+    ('Cold brew', 'drinks', 'cafe'),
+    ('Matcha', 'drinks', 'cafe'),
+    ('Tea', 'drinks', 'cafe');
 
 -- Seed data: sample cafes only. No accounts or reviews are created.
 

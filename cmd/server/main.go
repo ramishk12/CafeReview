@@ -43,6 +43,9 @@ func main() {
 	if err := database.SeedCafes(); err != nil {
 		log.Fatalf("seeding failed: %v", err)
 	}
+	if err := database.SeedTags(); err != nil {
+		log.Fatalf("tag seeding failed: %v", err)
+	}
 
 	auth.CookieSecure = cfg.CookieSecure
 	auth.AppBaseURL = cfg.AppBaseURL

@@ -53,6 +53,12 @@ current behaviour.
 - **Summary values:** the average rating is the mean of all reviews; the review
   count is the number of reviews (visits); the reviewer count is the number of
   distinct people who reviewed it. Labels read "N reviews from M people".
+- **Tags:** cafes carry tags from a shared, admin-curated set grouped into
+  categories (location, vibe, drinks). Tags show as chips on the cafe page and as
+  filters on the browse list; filtering uses AND, so a cafe must have every
+  selected tag. Admins edit a cafe's tags from the cafe page. The tag framework is
+  shared by cafes, reviews, and images through a `scope` column, and a `pending`
+  status is reserved for future user-suggested tags awaiting approval.
 
 ## 3. Reviews
 
@@ -124,13 +130,15 @@ account.
 | GET | `/auth/me` | Current user |
 | GET | `/auth/verify` | Confirms an email with `?token=` |
 | POST | `/auth/verify/resend` | Sends a new link |
-| GET | `/cafes` | Search `q`, `sort`, `limit`, `offset` |
+| GET | `/cafes` | Search `q`, tag filter `tags` (comma-separated IDs, AND), `sort`, `limit`, `offset` |
 | GET | `/cafes/:id` | |
+| GET | `/tags` | Query: `scope` (`cafe`, `review`, `image`). Approved tags only |
 | POST | `/cafes` | Admin |
 | PUT | `/cafes/:id` | Admin |
 | DELETE | `/cafes/:id` | Admin; also removes reviews and photos |
 | POST | `/cafes/:id/close` | Admin |
 | POST | `/cafes/:id/reopen` | Admin |
+| PUT | `/cafes/:id/tags` | Admin. Body: `{"tag_ids": [...]}`, replaces the set |
 | GET | `/cafes/:id/reviews` | `sort`, `limit`, `offset` |
 | POST | `/cafes/:id/reviews` | One per user per cafe per day |
 | PUT | `/reviews/:id` | Owner only |
@@ -158,10 +166,13 @@ account.
 - `reviews`: id, cafe_id, user_id, rating (1-5), body, visited_on, created_at,
   updated_at. Unique on (user_id, cafe_id, visited_on).
 - `review_images`: id, review_id, filename, created_at.
+- `tags`: id, name, category, scope (`cafe`/`review`/`image`), status
+  (`approved`/`pending`), created_at. Unique on (scope, name).
+- `cafe_tags`: cafe_id, tag_id.
 
 ## 11. Not built yet
 
-Tracked as issues: cafe tags, review tags, image tags and cafe backgrounds,
+Tracked as issues: review tags, image tags and cafe backgrounds,
 closing and archiving cafes, user lists, following cafes, social sign-in,
 account settings, public profiles, review reports and moderation, helpful votes,
 review edit history, review drafts, maps integration, Dockerfiles, structured

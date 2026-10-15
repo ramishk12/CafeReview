@@ -102,6 +102,21 @@ func Migrate() error {
 			created_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_email_tokens_user_id ON email_tokens(user_id)`,
+		`CREATE TABLE IF NOT EXISTS tags (
+			id SERIAL PRIMARY KEY,
+			name VARCHAR(100) NOT NULL,
+			category VARCHAR(50) NOT NULL,
+			scope VARCHAR(20) NOT NULL DEFAULT 'cafe' CHECK (scope IN ('cafe', 'review', 'image')),
+			status VARCHAR(20) NOT NULL DEFAULT 'approved' CHECK (status IN ('approved', 'pending')),
+			created_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
+			UNIQUE (scope, name)
+		)`,
+		`CREATE TABLE IF NOT EXISTS cafe_tags (
+			cafe_id INTEGER NOT NULL REFERENCES cafes(id) ON DELETE CASCADE,
+			tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+			PRIMARY KEY (cafe_id, tag_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_cafe_tags_tag_id ON cafe_tags(tag_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_reviews_cafe_id ON reviews(cafe_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_review_images_review_id ON review_images(review_id)`,
 	}
