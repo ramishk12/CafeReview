@@ -21,7 +21,7 @@ import (
 
 func fetchReviewMock(m sqlmock.Sqlmock, id int, now time.Time) {
 	m.ExpectQuery(`FROM reviews r JOIN users u ON u.id = r.user_id WHERE r.id = \$1`).WithArgs(id).
-		WillReturnRows(sqlmock.NewRows(reviewCols).AddRow(id, 1, 7, "Demo User", 4, "Lovely.", now, now, now))
+		WillReturnRows(sqlmock.NewRows(reviewCols).AddRow(id, 1, 7, "Demo User", 4, "Lovely.", now, now, now, 0))
 	m.ExpectQuery(`FROM review_images`).WillReturnRows(sqlmock.NewRows(imageCols))
 	m.ExpectQuery(`FROM review_tags`).WillReturnRows(sqlmock.NewRows([]string{"review_id", "id", "name", "category", "scope"}))
 }
@@ -145,6 +145,8 @@ func TestUpdateReview(t *testing.T) {
 				WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(7))
 			m.ExpectQuery(`SELECT c\.closed_at FROM reviews r JOIN cafes c`).WithArgs(10).
 				WillReturnRows(sqlmock.NewRows([]string{"closed_at"}).AddRow(nil))
+			m.ExpectExec(`INSERT INTO review_revisions`).WithArgs(10).
+				WillReturnResult(sqlmock.NewResult(1, 1))
 			m.ExpectExec(`UPDATE reviews SET rating = \$1, body = \$2, visited_on = \$3`).WithArgs(2, "Changed my mind.", sqlmock.AnyArg(), 10).
 				WillReturnResult(sqlmock.NewResult(0, 1))
 			m.ExpectBegin()
@@ -412,6 +414,63 @@ func TestSetReviewImageTags(t *testing.T) {
 
 			c, w := newTestContext(t, http.MethodPut, "/api/review-images/5/tags", map[string]any{"tag_ids": []int{}}, params, 7, models.RoleUser)
 			SetReviewImageTags(c)
+			assert.Equal(t, http.StatusNotFound, w.Code)
+		})
+	})
+}
+
+func TestGetReviewRevisions(t *testing.T) {
+	now := time.Now()
+	params := gin.Params{{Key: "id", Value: "10"}}
+
+	t.Run("Owner sees the earlier versions", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT user_id FROM reviews WHERE id = \$1`).WithArgs(10).
+				WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(7))
+			m.ExpectQuery(`FROM review_revisions`).WithArgs(10).
+				WillReturnRows(sqlmock.NewRows([]string{"id", "rating", "body", "visited_on", "replaced_at"}).
+					AddRow(1, 3, "Old text.", now, now))
+
+			c, w := newTestContext(t, http.MethodGet, "/api/reviews/10/revisions", nil, params, 7, models.RoleUser)
+			GetReviewRevisions(c)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.Contains(t, w.Body.String(), "Old text.")
+			assert.NoError(t, m.ExpectationsWereMet())
+		})
+	})
+
+	t.Run("Another user is forbidden", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT user_id FROM reviews WHERE id = \$1`).WithArgs(10).
+				WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(9))
+
+			c, w := newTestContext(t, http.MethodGet, "/api/reviews/10/revisions", nil, params, 7, models.RoleUser)
+			GetReviewRevisions(c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	})
+
+	t.Run("An admin may view another user's history", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT user_id FROM reviews WHERE id = \$1`).WithArgs(10).
+				WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(9))
+			m.ExpectQuery(`FROM review_revisions`).WithArgs(10).
+				WillReturnRows(sqlmock.NewRows([]string{"id", "rating", "body", "visited_on", "replaced_at"}))
+
+			c, w := newTestContext(t, http.MethodGet, "/api/reviews/10/revisions", nil, params, 1, models.RoleAdmin)
+			GetReviewRevisions(c)
+			assert.Equal(t, http.StatusOK, w.Code)
+		})
+	})
+
+	t.Run("Returns 404 when the review does not exist", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT user_id FROM reviews WHERE id = \$1`).WithArgs(10).
+				WillReturnRows(sqlmock.NewRows([]string{"user_id"}))
+
+			c, w := newTestContext(t, http.MethodGet, "/api/reviews/10/revisions", nil, params, 7, models.RoleUser)
+			GetReviewRevisions(c)
 			assert.Equal(t, http.StatusNotFound, w.Code)
 		})
 	})

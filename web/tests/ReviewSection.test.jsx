@@ -26,7 +26,7 @@ const reviews = [
   {
     id: 10, user_id: 7, author_name: 'Demo User', rating: 5, body: 'Excellent.', visited_on: '2026-09-28',
     created_at: '2026-10-01T10:00:00Z', updated_at: '2026-10-01T10:00:00Z',
-    images: [{ id: 100, url: '/uploads/a.jpg' }], tags: [{ id: 1, name: 'Seasonal menu' }],
+    images: [{ id: 100, url: '/uploads/a.jpg' }], tags: [{ id: 1, name: 'Seasonal menu' }], revision_count: 2,
   },
   {
     id: 11, user_id: 8, author_name: 'Sam Lee', rating: 2, body: 'Too cold.', visited_on: '2026-10-02',
@@ -115,7 +115,7 @@ describe('ReviewSection', () => {
   it('opens the edit form when a user edits their own review', () => {
     authState = { user: { id: 7, display_name: 'Demo User', role: 'user' } }
     render(<ReviewSection cafe={cafe} reviews={reviews} />)
-    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     expect(screen.getByRole('heading', { name: 'Edit your review' })).toBeInTheDocument()
   })
 
@@ -130,12 +130,23 @@ describe('ReviewSection', () => {
     render(<ReviewSection cafe={{ id: 1, name: 'Bean There', closed: true }} reviews={reviews} />)
     expect(screen.getByText(/no longer accepting new reviews/i)).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Write a review' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
   })
 
   it('links a review author to their profile', () => {
     render(<ReviewSection cafe={cafe} reviews={reviews} />)
     expect(screen.getByRole('link', { name: 'Demo User' })).toHaveAttribute('href', '/users/7')
+  })
+
+  it('shows the edit history control to the owner of an edited review', () => {
+    authState = { user: { id: 7, display_name: 'Demo User', role: 'user' }, isAdmin: false }
+    render(<ReviewSection cafe={cafe} reviews={reviews} />)
+    expect(screen.getByRole('button', { name: /view history \(2\)/i })).toBeInTheDocument()
+  })
+
+  it('hides the edit history from other visitors', () => {
+    render(<ReviewSection cafe={cafe} reviews={reviews} />)
+    expect(screen.queryByRole('button', { name: /view history/i })).not.toBeInTheDocument()
   })
 
   it('shows a review\'s tags', () => {
