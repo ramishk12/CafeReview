@@ -4,7 +4,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { deleteReview } from '@/lib/api'
+import { deleteReview, getReviewRevisions } from '@/lib/api'
 import { formatDate } from '@/lib/cafeTheme'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
@@ -16,9 +16,24 @@ import Stars from './Stars'
 export default function ReviewCard({ review, isOwner, onOpenPhoto, onEdit }) {
   const router = useRouter()
   const toast = useToast()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState('')
+  const [history, setHistory] = useState(null)
+
+  const canSeeHistory = review.revision_count > 0 && (isOwner || isAdmin)
+
+  const toggleHistory = async () => {
+    if (history) {
+      setHistory(null)
+      return
+    }
+    try {
+      setHistory(await getReviewRevisions(review.id))
+    } catch (err) {
+      setError(err.message)
+    }
+  }
 
   const handleDelete = async () => {
     if (!window.confirm('Delete this review? This also removes its photos.')) return
@@ -85,6 +100,27 @@ export default function ReviewCard({ review, isOwner, onOpenPhoto, onEdit }) {
             </li>
           ))}
         </ul>
+      )}
+
+      {canSeeHistory && (
+        <div className="mt-3">
+          <button type="button" onClick={toggleHistory} className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+            {history ? 'Hide history' : `Edited · view history (${review.revision_count})`}
+          </button>
+          {history && (
+            <ul className="mt-2 grid gap-2">
+              {history.map((revision) => (
+                <li key={revision.id} className="rounded-xl bg-slate-50 p-3 text-sm dark:bg-white/5">
+                  <div className="flex items-center justify-between gap-2">
+                    <Stars value={revision.rating} size={13} />
+                    <span className="text-xs text-slate-400">{formatDate(revision.visited_on)}</span>
+                  </div>
+                  <p className="mt-1 whitespace-pre-wrap text-slate-600 dark:text-slate-300">{revision.body}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
 
       {user && (

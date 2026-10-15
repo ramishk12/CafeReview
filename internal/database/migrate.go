@@ -138,6 +138,15 @@ func Migrate() error {
 			PRIMARY KEY (review_id, tag_id)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_review_tags_tag_id ON review_tags(tag_id)`,
+		`CREATE TABLE IF NOT EXISTS review_revisions (
+			id SERIAL PRIMARY KEY,
+			review_id INTEGER NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+			rating INTEGER NOT NULL,
+			body TEXT NOT NULL,
+			visited_on DATE NOT NULL,
+			replaced_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_review_revisions_review_id ON review_revisions(review_id)`,
 		`CREATE TABLE IF NOT EXISTS lists (
 			id SERIAL PRIMARY KEY,
 			user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

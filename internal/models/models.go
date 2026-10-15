@@ -67,18 +67,27 @@ type Tag struct {
 }
 
 type Review struct {
-	ID         int           `json:"id"`
-	CafeID     int           `json:"cafe_id"`
-	UserID     int           `json:"user_id"`
-	AuthorName string        `json:"author_name"`
-	Rating     int           `json:"rating"`
-	Body       string        `json:"body"`
-	VisitedOn  string        `json:"visited_on"`
-	CafeName   string        `json:"cafe_name,omitempty"`
-	Images     []ReviewImage `json:"images"`
-	Tags       []Tag         `json:"tags"`
-	CreatedAt  time.Time     `json:"created_at"`
-	UpdatedAt  time.Time     `json:"updated_at"`
+	ID            int           `json:"id"`
+	CafeID        int           `json:"cafe_id"`
+	UserID        int           `json:"user_id"`
+	AuthorName    string        `json:"author_name"`
+	Rating        int           `json:"rating"`
+	Body          string        `json:"body"`
+	VisitedOn     string        `json:"visited_on"`
+	CafeName      string        `json:"cafe_name,omitempty"`
+	Images        []ReviewImage `json:"images"`
+	Tags          []Tag         `json:"tags"`
+	RevisionCount int           `json:"revision_count"`
+	CreatedAt     time.Time     `json:"created_at"`
+	UpdatedAt     time.Time     `json:"updated_at"`
+}
+
+type ReviewRevision struct {
+	ID         int       `json:"id"`
+	Rating     int       `json:"rating"`
+	Body       string    `json:"body"`
+	VisitedOn  string    `json:"visited_on"`
+	ReplacedAt time.Time `json:"replaced_at"`
 }
 
 type ReviewImage struct {

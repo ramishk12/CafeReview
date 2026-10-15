@@ -56,6 +56,7 @@ func NewRouter(uploadDir string) *gin.Engine {
 
 	authed.POST("/cafes/:id/reviews", handlers.CreateReview)
 	authed.PUT("/reviews/:id", handlers.UpdateReview)
+	authed.GET("/reviews/:id/revisions", handlers.GetReviewRevisions)
 	authed.DELETE("/reviews/:id", handlers.DeleteReview)
 	authed.POST("/reviews/:id/images", handlers.UploadReviewImage)
 	authed.DELETE("/reviews/:id/images/:imageId", handlers.DeleteReviewImage)

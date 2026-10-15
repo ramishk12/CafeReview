@@ -96,6 +96,10 @@ current behaviour.
 - **Review tags:** a review can be tagged by its author with admin-curated
   visit tags (for example `Seasonal menu`, `Limited edition`, `Event`). Tags
   appear on the review and can be set in the review form.
+- **Edit history:** each edit keeps the previous rating, text, and visit date.
+  The review's author and admins can view earlier versions from the review
+  ("Edited · view history"). Images are not versioned. Deleting a review removes
+  its history.
 - **Filtering:** the review list on a cafe page can be filtered by minimum
   rating, reviews with photos, review tags, and the signed-in user's own
   reviews. Filters run in the browser and are kept in the URL so the view is
@@ -197,7 +201,8 @@ account.
 | DELETE | `/lists/:id/reviews/:reviewId` | Owner |
 | GET | `/cafes/:id/reviews` | `sort`, `limit`, `offset` |
 | POST | `/cafes/:id/reviews` | One per user per cafe per day. Body includes `visited_on` and optional `tag_ids` |
-| PUT | `/reviews/:id` | Owner only. Body includes rating, body, `visited_on`, and `tag_ids` |
+| PUT | `/reviews/:id` | Owner only. Body includes rating, body, `visited_on`, and `tag_ids`. The previous version is saved |
+| GET | `/reviews/:id/revisions` | Author or admin. The review's earlier versions |
 | DELETE | `/reviews/:id` | Owner only; also removes photos |
 | POST | `/reviews/:id/images` | Owner only |
 | DELETE | `/reviews/:id/images/:imageId` | Owner only |
@@ -229,12 +234,13 @@ account.
 - `cafe_tags`: cafe_id, tag_id.
 - `review_image_tags`: image_id, tag_id.
 - `review_tags`: review_id, tag_id.
+- `review_revisions`: id, review_id, rating, body, visited_on, replaced_at.
 - `lists`: id, user_id, name, is_public, created_at.
 - `list_cafes`, `list_reviews`, `list_users`: list_id + the item id, added_at.
 
 ## 12. Not built yet
 
-Tracked as issues: city search and maps (#16), social sign-in (#33), account settings (#45), admin moderation (#35), reporting reviews (#40), helpful votes (#41), review edit history (#42), review drafts (#43), following cafes and email (#46), similar-cafe warning (#36), loading and empty states (#39), and the launch work: image storage (#9), Docker (#48), enforcing the CSP (#62), structured logging (#49), and accessibility (#50).
+Tracked as issues: city search and maps (#16), social sign-in (#33), account settings (#45), admin moderation (#35), reporting reviews (#40), helpful votes (#41), review drafts (#43), following cafes and email (#46), similar-cafe warning (#36), loading and empty states (#39), and the launch work: image storage (#9), Docker (#48), enforcing the CSP (#62), structured logging (#49), and accessibility (#50).
 closing and archiving cafes, user lists, following cafes, social sign-in,
 account settings, public profiles, review reports and moderation, helpful votes,
 review edit history, review drafts, maps integration, Dockerfiles, structured

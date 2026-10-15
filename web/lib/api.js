@@ -141,6 +141,7 @@ export const removeReviewFromList = (listId, reviewId) => request(`/lists/${list
 export const createReview = (cafeId, review) => request(`/cafes/${cafeId}/reviews`, { method: 'POST', body: review })
 export const updateReview = (reviewId, review) => request(`/reviews/${reviewId}`, { method: 'PUT', body: review })
 export const deleteReview = (reviewId) => request(`/reviews/${reviewId}`, { method: 'DELETE' })
+export const getReviewRevisions = (reviewId) => request(`/reviews/${reviewId}/revisions`)
 
 export function uploadReviewImage(reviewId, file) {
   const form = new FormData()

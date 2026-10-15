@@ -24,7 +24,8 @@ var Uploads storage.Storage
 const maxReviewBodyLength = 2000
 
 const reviewSelect = `
-	SELECT r.id, r.cafe_id, r.user_id, u.display_name, r.rating, r.body, r.visited_on, r.created_at, r.updated_at
+	SELECT r.id, r.cafe_id, r.user_id, u.display_name, r.rating, r.body, r.visited_on, r.created_at, r.updated_at,
+	       (SELECT COUNT(*) FROM review_revisions rr WHERE rr.review_id = r.id)
 	FROM reviews r
 	JOIN users u ON u.id = r.user_id`
 
@@ -126,7 +127,7 @@ func scanReview(row interface{ Scan(...any) error }) (models.Review, error) {
 	var visited time.Time
 	err := row.Scan(
 		&r.ID, &r.CafeID, &r.UserID, &r.AuthorName, &r.Rating, &r.Body,
-		&visited, &r.CreatedAt, &r.UpdatedAt,
+		&visited, &r.CreatedAt, &r.UpdatedAt, &r.RevisionCount,
 	)
 	r.VisitedOn = visited.Format("2006-01-02")
 	return r, err
@@ -532,6 +533,14 @@ func UpdateReview(c *gin.Context) {
 		return
 	}
 
+	// Keep the previous version before overwriting it.
+	if _, err := database.DB.Exec(`
+		INSERT INTO review_revisions (review_id, rating, body, visited_on)
+		SELECT id, rating, body, visited_on FROM reviews WHERE id = $1`, reviewID); err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+
 	_, err = database.DB.Exec(
 		`UPDATE reviews SET rating = $1, body = $2, visited_on = $3, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
 		 WHERE id = $4`,
@@ -581,4 +590,63 @@ func DeleteReview(c *gin.Context) {
 	}
 	removeImageFiles(filenames)
 	c.Status(http.StatusNoContent)
+}
+
+// requireReviewOwnerOrAdmin allows the review's author or any admin. Others get 403.
+func requireReviewOwnerOrAdmin(c *gin.Context, reviewID int) bool {
+	var ownerID int
+	err := database.DB.QueryRow(`SELECT user_id FROM reviews WHERE id = $1`, reviewID).Scan(&ownerID)
+	if errors.Is(err, sql.ErrNoRows) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Review not found"})
+		return false
+	}
+	if err != nil {
+		apierror.Internal(c, err)
+		return false
+	}
+	if ownerID != auth.CurrentUserID(c) && auth.CurrentRole(c) != models.RoleAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only view your own review history"})
+		return false
+	}
+	return true
+}
+
+// GetReviewRevisions returns a review's earlier versions, newest first. Visible
+// to the review's author and admins only.
+func GetReviewRevisions(c *gin.Context) {
+	reviewID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	if !requireReviewOwnerOrAdmin(c, reviewID) {
+		return
+	}
+
+	rows, err := database.DB.Query(`
+		SELECT id, rating, body, visited_on, replaced_at
+		FROM review_revisions
+		WHERE review_id = $1
+		ORDER BY replaced_at DESC, id DESC`, reviewID)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	defer rows.Close()
+
+	revisions := []models.ReviewRevision{}
+	for rows.Next() {
+		var rev models.ReviewRevision
+		var visited time.Time
+		if err := rows.Scan(&rev.ID, &rev.Rating, &rev.Body, &visited, &rev.ReplacedAt); err != nil {
+			apierror.Internal(c, err)
+			return
+		}
+		rev.VisitedOn = visited.Format("2006-01-02")
+		revisions = append(revisions, rev)
+	}
+	if err := rows.Err(); err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, revisions)
 }
