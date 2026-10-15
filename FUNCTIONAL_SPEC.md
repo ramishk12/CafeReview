@@ -32,6 +32,10 @@ current behaviour.
   resends are 5 per hour per IP. Over the limit returns `429` with `Retry-After`.
 - **Passwords:** hashed with bcrypt, never returned. There is no password reset
   yet.
+- **Public profiles:** each user has a public page at `/users/:id` showing their
+  display name, join date, review count, and their reviews (newest first, each
+  linking to its cafe). Only public data is shown; the email is never exposed.
+  Review author names link to profiles across the app.
 
 ## 2. Cafes
 
@@ -165,6 +169,8 @@ account.
 | GET | `/cafes` | Search `q`, tag filter `tags` (comma-separated IDs, AND), `sort`, `limit`, `offset` |
 | GET | `/cafes/:id` | |
 | GET | `/tags` | Query: `scope` (`cafe`, `review`, `image`). Approved tags only |
+| GET | `/users/:id` | Public profile: display name, join date, review count |
+| GET | `/users/:id/reviews` | A user's reviews, newest first, with `cafe_name`. Paged |
 | POST | `/cafes` | Admin |
 | PUT | `/cafes/:id` | Admin |
 | DELETE | `/cafes/:id` | Admin; also removes reviews and photos |
@@ -196,6 +202,7 @@ account.
 - `/cafes/:id` cafe detail, reviews (with sorting and filtering), photos, and the review form.
 - `/cafes/new` admin: add a cafe.
 - `/cafes/:id/edit` admin: edit an existing cafe.
+- `/users/:id` public profile.
 - `/login`, `/register`, `/verify` account pages.
 
 ## 11. Data model
@@ -221,7 +228,7 @@ account.
 
 ## 12. Not built yet
 
-Tracked as issues: city search and maps (#16), social sign-in (#33), account settings (#45), public profiles (#44), admin moderation (#35), reporting reviews (#40), helpful votes (#41), review edit history (#42), review drafts (#43), lists of reviewers and reviews (#78), following cafes and email (#46), similar-cafe warning (#36), loading and empty states (#39), and the launch work: image storage (#9), Docker (#48), enforcing the CSP (#62), structured logging (#49), and accessibility (#50).
+Tracked as issues: city search and maps (#16), social sign-in (#33), account settings (#45), admin moderation (#35), reporting reviews (#40), helpful votes (#41), review edit history (#42), review drafts (#43), lists of reviewers and reviews (#78), following cafes and email (#46), similar-cafe warning (#36), loading and empty states (#39), and the launch work: image storage (#9), Docker (#48), enforcing the CSP (#62), structured logging (#49), and accessibility (#50).
 closing and archiving cafes, user lists, following cafes, social sign-in,
 account settings, public profiles, review reports and moderation, helpful votes,
 review edit history, review drafts, maps integration, Dockerfiles, structured

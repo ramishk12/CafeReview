@@ -133,6 +133,11 @@ describe('ReviewSection', () => {
     expect(screen.queryByRole('button', { name: /edit/i })).not.toBeInTheDocument()
   })
 
+  it('links a review author to their profile', () => {
+    render(<ReviewSection cafe={cafe} reviews={reviews} />)
+    expect(screen.getByRole('link', { name: 'Demo User' })).toHaveAttribute('href', '/users/7')
+  })
+
   it('shows a review\'s tags', () => {
     render(<ReviewSection cafe={cafe} reviews={reviews} />)
     expect(screen.getByText('Seasonal menu')).toBeInTheDocument()

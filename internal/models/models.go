@@ -65,6 +65,7 @@ type Review struct {
 	Rating     int           `json:"rating"`
 	Body       string        `json:"body"`
 	VisitedOn  string        `json:"visited_on"`
+	CafeName   string        `json:"cafe_name,omitempty"`
 	Images     []ReviewImage `json:"images"`
 	Tags       []Tag         `json:"tags"`
 	CreatedAt  time.Time     `json:"created_at"`
