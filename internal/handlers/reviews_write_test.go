@@ -56,6 +56,8 @@ func TestCreateReview(t *testing.T) {
 
 	t.Run("Creates a review for the current user and returns it", func(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT closed_at FROM cafes WHERE id = \$1`).WithArgs(1).
+				WillReturnRows(sqlmock.NewRows([]string{"closed_at"}).AddRow(nil))
 			m.ExpectQuery(`INSERT INTO reviews`).WithArgs(1, 7, 4, "Lovely.", sqlmock.AnyArg()).
 				WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
 			fetchReviewMock(m, 10, now)
@@ -75,6 +77,8 @@ func TestCreateReview(t *testing.T) {
 
 	t.Run("Returns 409 when the user already reviewed this cafe", func(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT closed_at FROM cafes WHERE id = \$1`).WithArgs(1).
+				WillReturnRows(sqlmock.NewRows([]string{"closed_at"}).AddRow(nil))
 			m.ExpectQuery(`INSERT INTO reviews`).WillReturnError(&pq.Error{Code: "23505"})
 
 			c, w := newTestContext(t, http.MethodPost, "/api/cafes/1/reviews",
@@ -88,7 +92,8 @@ func TestCreateReview(t *testing.T) {
 
 	t.Run("Returns 404 when the cafe does not exist", func(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
-			m.ExpectQuery(`INSERT INTO reviews`).WillReturnError(&pq.Error{Code: "23503"})
+			m.ExpectQuery(`SELECT closed_at FROM cafes WHERE id = \$1`).WithArgs(1).
+				WillReturnRows(sqlmock.NewRows([]string{"closed_at"}))
 
 			c, w := newTestContext(t, http.MethodPost, "/api/cafes/1/reviews",
 				map[string]any{"rating": 4, "body": "Hi."}, params, 7, models.RoleUser)
@@ -98,8 +103,10 @@ func TestCreateReview(t *testing.T) {
 		})
 	})
 
-	t.Run("Returns 400 for an invalid rating without touching the database", func(t *testing.T) {
+	t.Run("Returns 400 for an invalid rating without an insert", func(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT closed_at FROM cafes WHERE id = \$1`).WithArgs(1).
+				WillReturnRows(sqlmock.NewRows([]string{"closed_at"}).AddRow(nil))
 			c, w := newTestContext(t, http.MethodPost, "/api/cafes/1/reviews",
 				map[string]any{"rating": 9, "body": "Hi."}, params, 7, models.RoleUser)
 			CreateReview(c)
@@ -111,6 +118,8 @@ func TestCreateReview(t *testing.T) {
 
 	t.Run("Returns 500 when the insert fails for another reason", func(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT closed_at FROM cafes WHERE id = \$1`).WithArgs(1).
+				WillReturnRows(sqlmock.NewRows([]string{"closed_at"}).AddRow(nil))
 			m.ExpectQuery(`INSERT INTO reviews`).WillReturnError(errors.New("disk full"))
 
 			c, w := newTestContext(t, http.MethodPost, "/api/cafes/1/reviews",
@@ -130,6 +139,8 @@ func TestUpdateReview(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
 			m.ExpectQuery(`SELECT user_id FROM reviews WHERE id = \$1`).WithArgs(10).
 				WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(7))
+			m.ExpectQuery(`SELECT c\.closed_at FROM reviews r JOIN cafes c`).WithArgs(10).
+				WillReturnRows(sqlmock.NewRows([]string{"closed_at"}).AddRow(nil))
 			m.ExpectExec(`UPDATE reviews SET rating = \$1, body = \$2, visited_on = \$3`).WithArgs(2, "Changed my mind.", sqlmock.AnyArg(), 10).
 				WillReturnResult(sqlmock.NewResult(0, 1))
 			fetchReviewMock(m, 10, now)
@@ -174,6 +185,8 @@ func TestUpdateReview(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
 			m.ExpectQuery(`SELECT user_id FROM reviews WHERE id = \$1`).WithArgs(10).
 				WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(7))
+			m.ExpectQuery(`SELECT c\.closed_at FROM reviews r JOIN cafes c`).WithArgs(10).
+				WillReturnRows(sqlmock.NewRows([]string{"closed_at"}).AddRow(nil))
 
 			c, w := newTestContext(t, http.MethodPut, "/api/reviews/10",
 				map[string]any{"rating": 2, "body": "  "}, params, 7, models.RoleUser)
@@ -276,6 +289,8 @@ func TestCreateReviewAcceptsVisitedOn(t *testing.T) {
 	params := gin.Params{{Key: "id", Value: "1"}}
 
 	withMockDB(t, func(m sqlmock.Sqlmock) {
+		m.ExpectQuery(`SELECT closed_at FROM cafes WHERE id = \$1`).WithArgs(1).
+			WillReturnRows(sqlmock.NewRows([]string{"closed_at"}).AddRow(nil))
 		m.ExpectQuery(`INSERT INTO reviews`).WithArgs(1, 7, 4, "Lovely.", "2020-05-05").
 			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
 		fetchReviewMock(m, 10, now)
@@ -286,5 +301,41 @@ func TestCreateReviewAcceptsVisitedOn(t *testing.T) {
 
 		assert.Equal(t, http.StatusCreated, w.Code)
 		assert.NoError(t, m.ExpectationsWereMet())
+	})
+}
+
+func TestCreateReviewWhenClosed(t *testing.T) {
+	params := gin.Params{{Key: "id", Value: "1"}}
+
+	withMockDB(t, func(m sqlmock.Sqlmock) {
+		m.ExpectQuery(`SELECT closed_at FROM cafes WHERE id = \$1`).WithArgs(1).
+			WillReturnRows(sqlmock.NewRows([]string{"closed_at"}).AddRow(time.Now()))
+
+		c, w := newTestContext(t, http.MethodPost, "/api/cafes/1/reviews",
+			map[string]any{"rating": 4, "body": "Hi."}, params, 7, models.RoleUser)
+		CreateReview(c)
+
+		assert.Equal(t, http.StatusConflict, w.Code)
+		assert.Contains(t, w.Body.String(), "closed")
+		assert.NoError(t, m.ExpectationsWereMet(), "no insert should happen for a closed cafe")
+	})
+}
+
+func TestUpdateReviewWhenClosed(t *testing.T) {
+	params := gin.Params{{Key: "id", Value: "10"}}
+
+	withMockDB(t, func(m sqlmock.Sqlmock) {
+		m.ExpectQuery(`SELECT user_id FROM reviews WHERE id = \$1`).WithArgs(10).
+			WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(7))
+		m.ExpectQuery(`SELECT c\.closed_at FROM reviews r JOIN cafes c`).WithArgs(10).
+			WillReturnRows(sqlmock.NewRows([]string{"closed_at"}).AddRow(time.Now()))
+
+		c, w := newTestContext(t, http.MethodPut, "/api/reviews/10",
+			map[string]any{"rating": 2, "body": "Edit."}, params, 7, models.RoleUser)
+		UpdateReview(c)
+
+		assert.Equal(t, http.StatusConflict, w.Code)
+		assert.Contains(t, w.Body.String(), "closed")
+		assert.NoError(t, m.ExpectationsWereMet(), "no update should happen for a closed cafe")
 	})
 }

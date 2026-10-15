@@ -95,6 +95,8 @@ export const resendVerification = (email) => request('/auth/verify/resend', { me
 export const createCafe = (cafe) => request('/cafes', { method: 'POST', body: cafe })
 export const updateCafe = (id, cafe) => request(`/cafes/${id}`, { method: 'PUT', body: cafe })
 export const deleteCafe = (id) => request(`/cafes/${id}`, { method: 'DELETE' })
+export const closeCafe = (id) => request(`/cafes/${id}/close`, { method: 'POST' })
+export const reopenCafe = (id) => request(`/cafes/${id}/reopen`, { method: 'POST' })
 
 // Reviews
 export const createReview = (cafeId, review) => request(`/cafes/${cafeId}/reviews`, { method: 'POST', body: review })

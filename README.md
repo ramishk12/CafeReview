@@ -54,6 +54,8 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Signing in set
 | POST | `/cafes` | Admin |
 | PUT | `/cafes/:id` | Admin. Replaces name, address, and description |
 | DELETE | `/cafes/:id` | Admin. Also deletes the cafe's reviews and photo files |
+| POST | `/cafes/:id/close` | Admin. Closed cafes accept no new reviews and no review edits |
+| POST | `/cafes/:id/reopen` | Admin |
 | GET | `/cafes/:id/reviews` | Query: `sort` (`newest`, `highest`, `lowest`; default `newest`), `limit` (1-100), `offset` |
 | POST | `/cafes/:id/reviews` | One review per user per cafe per day. Body includes `visited_on` (YYYY-MM-DD, defaults to today) |
 | PUT | `/reviews/:id` | Owner only |

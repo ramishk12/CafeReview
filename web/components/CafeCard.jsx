@@ -21,6 +21,11 @@ export default function CafeCard({ cafe, isAdmin }) {
         <h2 className="text-lg font-semibold tracking-tight text-slate-900 group-hover:text-indigo-600 dark:text-white dark:group-hover:text-indigo-300">
           {cafe.name}
         </h2>
+        {cafe.closed && (
+          <span className="mt-2 inline-flex w-fit rounded-full bg-rose-100 px-2 py-0.5 text-xs font-semibold text-rose-700 dark:bg-rose-950/60 dark:text-rose-300">
+            Closed
+          </span>
+        )}
         {cafe.address && (
           <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
             <MapPin size={14} className="shrink-0" aria-hidden="true" />

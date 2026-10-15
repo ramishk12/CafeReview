@@ -35,13 +35,20 @@ export default async function CafePage({ params }) {
         >
           <ArrowLeft size={16} aria-hidden="true" /> All cafes
         </Link>
-        <CafeAdminActions cafeId={cafe.id} cafeName={cafe.name} />
+        <CafeAdminActions cafeId={cafe.id} cafeName={cafe.name} closed={cafe.closed} />
       </div>
 
       <header className={`relative mt-4 mb-10 overflow-hidden rounded-3xl p-8 text-white shadow-xl ${cafeGradient(cafe.name)}`}>
         <div className="absolute inset-0 bg-black/10" aria-hidden="true" />
         <div className="relative">
-          <h1 className="text-4xl font-extrabold tracking-tight drop-shadow-sm">{cafe.name}</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-4xl font-extrabold tracking-tight drop-shadow-sm">{cafe.name}</h1>
+            {cafe.closed && (
+              <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-bold uppercase tracking-wide backdrop-blur-sm">
+                Closed
+              </span>
+            )}
+          </div>
           {cafe.address && (
             <p className="mt-2 flex items-center gap-1.5 text-white/90">
               <MapPin size={16} aria-hidden="true" /> {cafe.address}
@@ -55,6 +62,13 @@ export default async function CafePage({ params }) {
           </div>
         </div>
       </header>
+
+      {cafe.closed && (
+        <div className="mb-8 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-900/50 dark:bg-rose-950/40 dark:text-rose-200">
+          This cafe is closed. New reviews are not accepted, and existing reviews can no longer be edited. Reviews can
+          still be deleted.
+        </div>
+      )}
 
       <ReviewSection cafe={cafe} reviews={reviews} />
     </section>

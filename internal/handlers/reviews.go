@@ -224,9 +224,31 @@ func ListReviews(c *gin.Context) {
 	c.JSON(http.StatusOK, reviews)
 }
 
+// cafeClosed reports whether the cafe is closed. It returns sql.ErrNoRows when
+// the cafe does not exist.
+func cafeClosed(cafeID int) (bool, error) {
+	var closedAt sql.NullTime
+	err := database.DB.QueryRow(`SELECT closed_at FROM cafes WHERE id = $1`, cafeID).Scan(&closedAt)
+	return closedAt.Valid, err
+}
+
 func CreateReview(c *gin.Context) {
 	cafeID, ok := parseID(c, "id")
 	if !ok {
+		return
+	}
+
+	closed, err := cafeClosed(cafeID)
+	if errors.Is(err, sql.ErrNoRows) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Cafe not found"})
+		return
+	}
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	if closed {
+		c.JSON(http.StatusConflict, gin.H{"error": "This cafe is closed and cannot receive new reviews."})
 		return
 	}
 
@@ -241,7 +263,7 @@ func CreateReview(c *gin.Context) {
 	}
 
 	var id int
-	err := database.DB.QueryRow(
+	err = database.DB.QueryRow(
 		`INSERT INTO reviews (cafe_id, user_id, rating, body, visited_on) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
 		cafeID, auth.CurrentUserID(c), req.Rating, req.Body, req.VisitedOn,
 	).Scan(&id)
@@ -275,6 +297,24 @@ func UpdateReview(c *gin.Context) {
 		return
 	}
 
+	// A closed cafe's reviews can be deleted but not edited.
+	var closedAt sql.NullTime
+	err := database.DB.QueryRow(
+		`SELECT c.closed_at FROM reviews r JOIN cafes c ON c.id = r.cafe_id WHERE r.id = $1`, reviewID,
+	).Scan(&closedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Review not found"})
+		return
+	}
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	if closedAt.Valid {
+		c.JSON(http.StatusConflict, gin.H{"error": "This cafe is closed; this review can no longer be edited."})
+		return
+	}
+
 	var req reviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
@@ -285,7 +325,7 @@ func UpdateReview(c *gin.Context) {
 		return
 	}
 
-	_, err := database.DB.Exec(
+	_, err = database.DB.Exec(
 		`UPDATE reviews SET rating = $1, body = $2, visited_on = $3, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
 		 WHERE id = $4`,
 		req.Rating, req.Body, req.VisitedOn, reviewID,

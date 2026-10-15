@@ -41,10 +41,15 @@ current behaviour.
 - **Detail:** a cafe page shows its name, address, description, average rating,
   review count and reviewer count, its reviews and photos.
 - **Admin only:** create, edit (name, address, description), and delete a cafe.
-  Admins have an Edit and Delete toolbar on the cafe page, an Edit action on the
-  browse list cards, and a dedicated edit page. Deleting a cafe also deletes its
-  reviews and their photo files. This admin surface is the base for later actions
-  (closing a cafe, setting a background image).
+  Admins have an Edit, Close/Reopen, and Delete toolbar on the cafe page, an Edit
+  action on the browse list cards, and a dedicated edit page. Deleting a cafe
+  also deletes its reviews and their photo files. This admin surface is the base
+  for later actions (such as setting a background image).
+- **Closing (admin):** an admin can close or reopen a cafe. A closed cafe shows a
+  "Closed" banner and a "Closed" badge on cards, accepts no new reviews, and its
+  existing reviews can no longer be edited (they can still be deleted). Closing
+  is reversible. Filtering closed cafes out of the list is planned to use tags
+  once tagging exists.
 - **Summary values:** the average rating is the mean of all reviews; the review
   count is the number of reviews (visits); the reviewer count is the number of
   distinct people who reviewed it. Labels read "N reviews from M people".
@@ -63,6 +68,8 @@ current behaviour.
   highest rated, or lowest rated, and paging.
 - **Photos:** each review has its own photos, shown on the review and in a
   per-cafe photo gallery.
+- **Closed cafes:** no new reviews can be added, and existing reviews can no
+  longer be edited. Existing reviews can still be deleted by their owner.
 
 ## 4. Images
 
@@ -122,6 +129,8 @@ account.
 | POST | `/cafes` | Admin |
 | PUT | `/cafes/:id` | Admin |
 | DELETE | `/cafes/:id` | Admin; also removes reviews and photos |
+| POST | `/cafes/:id/close` | Admin |
+| POST | `/cafes/:id/reopen` | Admin |
 | GET | `/cafes/:id/reviews` | `sort`, `limit`, `offset` |
 | POST | `/cafes/:id/reviews` | One per user per cafe per day |
 | PUT | `/reviews/:id` | Owner only |
