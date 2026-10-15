@@ -59,6 +59,10 @@ current behaviour.
   selected tag. Admins edit a cafe's tags from the cafe page. The tag framework is
   shared by cafes, reviews, and images through a `scope` column, and a `pending`
   status is reserved for future user-suggested tags awaiting approval.
+- **Background image (admin):** an admin can upload a background image for a
+  cafe (JPEG/PNG/WebP, up to 5 MB, sanitized like review photos). It is shown
+  behind the cafe header with a dark overlay for readable text; without one the
+  header keeps its colour gradient. Admins can replace or remove it.
 
 ## 3. Reviews
 
@@ -139,6 +143,8 @@ account.
 | POST | `/cafes/:id/close` | Admin |
 | POST | `/cafes/:id/reopen` | Admin |
 | PUT | `/cafes/:id/tags` | Admin. Body: `{"tag_ids": [...]}`, replaces the set |
+| PUT | `/cafes/:id/background` | Admin. Multipart field `image` |
+| DELETE | `/cafes/:id/background` | Admin |
 | GET | `/cafes/:id/reviews` | `sort`, `limit`, `offset` |
 | POST | `/cafes/:id/reviews` | One per user per cafe per day |
 | PUT | `/reviews/:id` | Owner only |
@@ -162,7 +168,8 @@ account.
   expires_at.
 - `email_tokens`: id, user_id, token_hash (unique), kind, expires_at, used_at,
   created_at.
-- `cafes`: id, name, address, description, created_at.
+- `cafes`: id, name, address, description, created_at, closed_at,
+  background_image_path.
 - `reviews`: id, cafe_id, user_id, rating (1-5), body, visited_on, created_at,
   updated_at. Unique on (user_id, cafe_id, visited_on).
 - `review_images`: id, review_id, filename, created_at.

@@ -19,17 +19,18 @@ type User struct {
 }
 
 type Cafe struct {
-	ID            int        `json:"id"`
-	Name          string     `json:"name"`
-	Address       string     `json:"address"`
-	Description   string     `json:"description"`
-	AvgRating     float64    `json:"avg_rating"`
-	ReviewCount   int        `json:"review_count"`
-	ReviewerCount int        `json:"reviewer_count"`
-	Closed        bool       `json:"closed"`
-	ClosedAt      *time.Time `json:"closed_at"`
-	CreatedAt     time.Time  `json:"created_at"`
-	Tags          []Tag      `json:"tags"`
+	ID              int        `json:"id"`
+	Name            string     `json:"name"`
+	Address         string     `json:"address"`
+	Description     string     `json:"description"`
+	AvgRating       float64    `json:"avg_rating"`
+	ReviewCount     int        `json:"review_count"`
+	ReviewerCount   int        `json:"reviewer_count"`
+	Closed          bool       `json:"closed"`
+	ClosedAt        *time.Time `json:"closed_at"`
+	BackgroundImage string     `json:"background_image_url"`
+	CreatedAt       time.Time  `json:"created_at"`
+	Tags            []Tag      `json:"tags"`
 }
 
 type Tag struct {
