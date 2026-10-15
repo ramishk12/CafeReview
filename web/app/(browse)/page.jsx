@@ -6,9 +6,20 @@ export const metadata = {
   description: 'Browse cafes with honest reviews and photos.',
 }
 
-export default async function HomePage() {
-  const [cafes, tags] = await Promise.all([listCafes(), listTags()])
-  const reviewTotal = cafes.reduce((sum, c) => sum + c.review_count, 0)
+const PAGE_SIZE = 24
+const SORTS = ['name', 'rating', 'reviews', 'newest']
+
+export default async function HomePage({ searchParams }) {
+  const sp = await searchParams
+  const page = Math.max(1, Number(sp.page) || 1)
+  const q = typeof sp.q === 'string' ? sp.q : ''
+  const sort = SORTS.includes(sp.sort) ? sp.sort : 'rating'
+  const tags = typeof sp.tags === 'string' ? sp.tags : ''
+
+  const [{ cafes, total }, allTags] = await Promise.all([
+    listCafes({ q, sort, tags, page, pageSize: PAGE_SIZE }),
+    listTags(),
+  ])
 
   return (
     <section>
@@ -22,11 +33,11 @@ export default async function HomePage() {
           Honest reviews and photos from people who actually drink the coffee.
         </p>
         <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
-          {cafes.length} {cafes.length === 1 ? 'cafe' : 'cafes'} · {reviewTotal} {reviewTotal === 1 ? 'review' : 'reviews'}
+          {total} {total === 1 ? 'cafe' : 'cafes'}
         </p>
       </div>
 
-      <CafeBrowser cafes={cafes} tags={tags} />
+      <CafeBrowser cafes={cafes} tags={allTags} total={total} page={page} pageSize={PAGE_SIZE} />
     </section>
   )
 }
