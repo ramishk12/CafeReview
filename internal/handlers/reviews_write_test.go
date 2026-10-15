@@ -21,7 +21,7 @@ import (
 
 func fetchReviewMock(m sqlmock.Sqlmock, id int, now time.Time) {
 	m.ExpectQuery(`FROM reviews r JOIN users u ON u.id = r.user_id WHERE r.id = \$1`).WithArgs(id).
-		WillReturnRows(sqlmock.NewRows(reviewCols).AddRow(id, 1, 7, "Demo User", 4, "Lovely.", now, now))
+		WillReturnRows(sqlmock.NewRows(reviewCols).AddRow(id, 1, 7, "Demo User", 4, "Lovely.", now, now, now))
 	m.ExpectQuery(`FROM review_images`).WillReturnRows(sqlmock.NewRows(imageCols))
 }
 
@@ -56,7 +56,7 @@ func TestCreateReview(t *testing.T) {
 
 	t.Run("Creates a review for the current user and returns it", func(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
-			m.ExpectQuery(`INSERT INTO reviews`).WithArgs(1, 7, 4, "Lovely.").
+			m.ExpectQuery(`INSERT INTO reviews`).WithArgs(1, 7, 4, "Lovely.", sqlmock.AnyArg()).
 				WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
 			fetchReviewMock(m, 10, now)
 
@@ -130,7 +130,7 @@ func TestUpdateReview(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
 			m.ExpectQuery(`SELECT user_id FROM reviews WHERE id = \$1`).WithArgs(10).
 				WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(7))
-			m.ExpectExec(`UPDATE reviews SET rating = \$1, body = \$2`).WithArgs(2, "Changed my mind.", 10).
+			m.ExpectExec(`UPDATE reviews SET rating = \$1, body = \$2, visited_on = \$3`).WithArgs(2, "Changed my mind.", sqlmock.AnyArg(), 10).
 				WillReturnResult(sqlmock.NewResult(0, 1))
 			fetchReviewMock(m, 10, now)
 
@@ -241,5 +241,50 @@ func TestDeleteReview(t *testing.T) {
 			_, err := os.Stat(filepath.Clean(path))
 			assert.NoError(t, err, "files must not be removed when the review was not deleted")
 		})
+	})
+}
+
+func TestNormalizeVisitedOn(t *testing.T) {
+	today := time.Now().UTC().Format("2006-01-02")
+
+	t.Run("empty defaults to today", func(t *testing.T) {
+		v, msg := normalizeVisitedOn("")
+		assert.Equal(t, today, v)
+		assert.Empty(t, msg)
+	})
+
+	t.Run("accepts a past date", func(t *testing.T) {
+		v, msg := normalizeVisitedOn("2020-01-02")
+		assert.Equal(t, "2020-01-02", v)
+		assert.Empty(t, msg)
+	})
+
+	t.Run("rejects a future date", func(t *testing.T) {
+		future := time.Now().UTC().AddDate(0, 0, 1).Format("2006-01-02")
+		_, msg := normalizeVisitedOn(future)
+		assert.Contains(t, msg, "future")
+	})
+
+	t.Run("rejects a malformed date", func(t *testing.T) {
+		_, msg := normalizeVisitedOn("02/01/2020")
+		assert.Contains(t, msg, "YYYY-MM-DD")
+	})
+}
+
+func TestCreateReviewAcceptsVisitedOn(t *testing.T) {
+	now := time.Now()
+	params := gin.Params{{Key: "id", Value: "1"}}
+
+	withMockDB(t, func(m sqlmock.Sqlmock) {
+		m.ExpectQuery(`INSERT INTO reviews`).WithArgs(1, 7, 4, "Lovely.", "2020-05-05").
+			WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
+		fetchReviewMock(m, 10, now)
+
+		c, w := newTestContext(t, http.MethodPost, "/api/cafes/1/reviews",
+			map[string]any{"rating": 4, "body": "Lovely.", "visited_on": "2020-05-05"}, params, 7, models.RoleUser)
+		CreateReview(c)
+
+		assert.Equal(t, http.StatusCreated, w.Code)
+		assert.NoError(t, m.ExpectationsWereMet())
 	})
 }

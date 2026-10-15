@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"cafe-review/internal/apierror"
 	"cafe-review/internal/auth"
@@ -22,7 +23,7 @@ var Uploads storage.Storage
 const maxReviewBodyLength = 2000
 
 const reviewSelect = `
-	SELECT r.id, r.cafe_id, r.user_id, u.display_name, r.rating, r.body, r.created_at, r.updated_at
+	SELECT r.id, r.cafe_id, r.user_id, u.display_name, r.rating, r.body, r.visited_on, r.created_at, r.updated_at
 	FROM reviews r
 	JOIN users u ON u.id = r.user_id`
 
@@ -31,11 +32,30 @@ var reviewSortClauses = map[string]string{
 	"newest":  "r.created_at DESC, r.id DESC",
 	"highest": "r.rating DESC, r.created_at DESC, r.id DESC",
 	"lowest":  "r.rating ASC, r.created_at DESC, r.id DESC",
+	"visit":   "r.visited_on DESC, r.id DESC",
 }
 
 type reviewRequest struct {
-	Rating int    `json:"rating"`
-	Body   string `json:"body"`
+	Rating    int    `json:"rating"`
+	Body      string `json:"body"`
+	VisitedOn string `json:"visited_on"`
+}
+
+// normalizeVisitedOn returns the visit date as YYYY-MM-DD, defaulting to today,
+// and an error message if it is malformed or in the future.
+func normalizeVisitedOn(value string) (string, string) {
+	value = strings.TrimSpace(value)
+	today := time.Now().UTC().Format("2006-01-02")
+	if value == "" {
+		return today, ""
+	}
+	if _, err := time.Parse("2006-01-02", value); err != nil {
+		return "", "Visit date must look like YYYY-MM-DD"
+	}
+	if value > today {
+		return "", "Visit date cannot be in the future"
+	}
+	return value, ""
 }
 
 // validateReviewRequest trims the body in place and returns an error message
@@ -51,15 +71,22 @@ func validateReviewRequest(req *reviewRequest) string {
 	if len(req.Body) > maxReviewBodyLength {
 		return "Review text must be at most 2000 characters"
 	}
+	visited, msg := normalizeVisitedOn(req.VisitedOn)
+	if msg != "" {
+		return msg
+	}
+	req.VisitedOn = visited
 	return ""
 }
 
 func scanReview(row interface{ Scan(...any) error }) (models.Review, error) {
 	var r models.Review
+	var visited time.Time
 	err := row.Scan(
 		&r.ID, &r.CafeID, &r.UserID, &r.AuthorName, &r.Rating, &r.Body,
-		&r.CreatedAt, &r.UpdatedAt,
+		&visited, &r.CreatedAt, &r.UpdatedAt,
 	)
+	r.VisitedOn = visited.Format("2006-01-02")
 	return r, err
 }
 
@@ -215,15 +242,15 @@ func CreateReview(c *gin.Context) {
 
 	var id int
 	err := database.DB.QueryRow(
-		`INSERT INTO reviews (cafe_id, user_id, rating, body) VALUES ($1, $2, $3, $4) RETURNING id`,
-		cafeID, auth.CurrentUserID(c), req.Rating, req.Body,
+		`INSERT INTO reviews (cafe_id, user_id, rating, body, visited_on) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+		cafeID, auth.CurrentUserID(c), req.Rating, req.Body, req.VisitedOn,
 	).Scan(&id)
 	if database.IsForeignKeyViolation(err) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Cafe not found"})
 		return
 	}
 	if database.IsUniqueViolation(err) {
-		c.JSON(http.StatusConflict, gin.H{"error": "You have already reviewed this cafe"})
+		c.JSON(http.StatusConflict, gin.H{"error": "You have already reviewed this cafe for that date. Only one review per day."})
 		return
 	}
 	if err != nil {
@@ -259,10 +286,14 @@ func UpdateReview(c *gin.Context) {
 	}
 
 	_, err := database.DB.Exec(
-		`UPDATE reviews SET rating = $1, body = $2, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
-		 WHERE id = $3`,
-		req.Rating, req.Body, reviewID,
+		`UPDATE reviews SET rating = $1, body = $2, visited_on = $3, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
+		 WHERE id = $4`,
+		req.Rating, req.Body, req.VisitedOn, reviewID,
 	)
+	if database.IsUniqueViolation(err) {
+		c.JSON(http.StatusConflict, gin.H{"error": "You already have a review for that date."})
+		return
+	}
 	if err != nil {
 		apierror.Internal(c, err)
 		return

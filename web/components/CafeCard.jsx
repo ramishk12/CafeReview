@@ -1,6 +1,6 @@
 import { MapPin } from 'lucide-react'
 import Link from 'next/link'
-import { cafeGradient } from '@/lib/cafeTheme'
+import { cafeGradient, ratingLabel } from '@/lib/cafeTheme'
 import Stars from './Stars'
 
 export default function CafeCard({ cafe }) {
@@ -29,7 +29,7 @@ export default function CafeCard({ cafe }) {
         <div className="mt-auto flex items-center gap-2 pt-4 text-sm">
           <Stars value={cafe.avg_rating} size={14} />
           <span className="text-slate-500 dark:text-slate-400">
-            {hasReviews ? `${cafe.review_count} ${cafe.review_count === 1 ? 'review' : 'reviews'}` : 'No reviews yet'}
+            {hasReviews ? ratingLabel(cafe.review_count, cafe.reviewer_count) : 'No reviews yet'}
           </span>
         </div>
       </div>

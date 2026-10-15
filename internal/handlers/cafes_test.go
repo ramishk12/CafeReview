@@ -17,12 +17,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var cafeCols = []string{"id", "name", "address", "description", "created_at", "avg", "count"}
+var cafeCols = []string{"id", "name", "address", "description", "created_at", "avg", "count", "reviewers"}
 
 func cafeListRows(now time.Time) *sqlmock.Rows {
 	return sqlmock.NewRows(cafeCols).
-		AddRow(1, "Bean There", "12 Market St", "Pour-overs.", now, 4.5, 2).
-		AddRow(2, "Morning Crumb", "48 Elm Ave", "Pastries.", now, 0.0, 0)
+		AddRow(1, "Bean There", "12 Market St", "Pour-overs.", now, 4.5, 2, 2).
+		AddRow(2, "Morning Crumb", "48 Elm Ave", "Pastries.", now, 0.0, 0, 0)
 }
 
 func countRow(n int) *sqlmock.Rows {
@@ -60,7 +60,7 @@ func TestListCafes(t *testing.T) {
 					WillReturnRows(countRow(1))
 				m.ExpectQuery(`WHERE c\.name ILIKE \$1 OR c\.address ILIKE \$1`).
 					WithArgs("%bean%").
-					WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, 4.5, 2))
+					WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, 4.5, 2, 2))
 			},
 			expectedStatus: http.StatusOK,
 			expectedTotal:  "1",
@@ -165,7 +165,7 @@ func TestUpdateCafe(t *testing.T) {
 				WithArgs("Bean There", "12 Market St", "Now with seats.", 1).
 				WillReturnResult(sqlmock.NewResult(0, 1))
 			m.ExpectQuery(`WHERE c\.id = \$1`).WithArgs(1).WillReturnRows(
-				sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "Now with seats.", now, 4.5, 2),
+				sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "Now with seats.", now, 4.5, 2, 2),
 			)
 
 			body := map[string]string{"name": "Bean There", "address": "12 Market St", "description": "Now with seats."}

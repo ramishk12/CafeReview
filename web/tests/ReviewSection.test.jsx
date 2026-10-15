@@ -20,12 +20,12 @@ vi.mock('@/context/ToastContext', () => ({
 const cafe = { id: 1, name: 'Bean There' }
 const reviews = [
   {
-    id: 10, user_id: 7, author_name: 'Demo User', rating: 5, body: 'Excellent.',
+    id: 10, user_id: 7, author_name: 'Demo User', rating: 5, body: 'Excellent.', visited_on: '2026-09-28',
     created_at: '2026-10-01T10:00:00Z', updated_at: '2026-10-01T10:00:00Z',
     images: [{ id: 100, url: '/uploads/a.jpg' }],
   },
   {
-    id: 11, user_id: 8, author_name: 'Sam Lee', rating: 2, body: 'Too cold.',
+    id: 11, user_id: 8, author_name: 'Sam Lee', rating: 2, body: 'Too cold.', visited_on: '2026-10-02',
     created_at: '2026-10-02T10:00:00Z', updated_at: '2026-10-02T10:00:00Z', images: [],
   },
 ]
@@ -64,9 +64,17 @@ describe('ReviewSection', () => {
     expect(bodies).toEqual(['Excellent.', 'Too cold.'])
   })
 
-  it('shows the edit form for the signed-in user who already reviewed', () => {
+  it('shows a form to add a visit for a signed-in user', () => {
     authState = { user: { id: 7, display_name: 'Demo User', role: 'user' } }
     render(<ReviewSection cafe={cafe} reviews={reviews} />)
+    expect(screen.getByRole('heading', { name: 'Write a review' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Visit date')).toBeInTheDocument()
+  })
+
+  it('opens the edit form when a user edits their own review', () => {
+    authState = { user: { id: 7, display_name: 'Demo User', role: 'user' } }
+    render(<ReviewSection cafe={cafe} reviews={reviews} />)
+    fireEvent.click(screen.getByRole('button', { name: /edit/i }))
     expect(screen.getByRole('heading', { name: 'Edit your review' })).toBeInTheDocument()
   })
 

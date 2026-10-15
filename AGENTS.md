@@ -17,6 +17,7 @@ docker compose up -d     # start Postgres
 ```
 
 ## Conventions
+- Keep FUNCTIONAL_SPEC.md (repo root) up to date in the same PR whenever a feature is added or changed.
 - Follow the Go conventions from FoodOrderTracking: camelCase functions, PascalCase types, snake_case DB tables.
 - Handlers: parse and validate input, query, map `sql.ErrNoRows` to 404, other errors to 500.
 - Passwords: bcrypt only. Never store or return password hashes.

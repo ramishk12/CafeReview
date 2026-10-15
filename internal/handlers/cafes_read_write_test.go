@@ -24,7 +24,7 @@ func TestGetCafe(t *testing.T) {
 	t.Run("Returns the cafe with its rating summary", func(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
 			m.ExpectQuery(`WHERE c\.id = \$1`).WithArgs(1).
-				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "Pour-overs.", now, 4.5, 2))
+				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "Pour-overs.", now, 4.5, 2, 2))
 
 			c, w := newTestContext(t, http.MethodGet, "/api/cafes/1", nil, params, 0, "")
 			GetCafe(c)
@@ -80,7 +80,7 @@ func TestCreateCafe(t *testing.T) {
 			m.ExpectQuery(`INSERT INTO cafes`).WithArgs("Bean There", "12 Market St", "Pour-overs.").
 				WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(3))
 			m.ExpectQuery(`WHERE c\.id = \$1`).WithArgs(3).
-				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(3, "Bean There", "12 Market St", "Pour-overs.", now, 0.0, 0))
+				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(3, "Bean There", "12 Market St", "Pour-overs.", now, 0.0, 0, 0))
 
 			body := map[string]string{"name": "  Bean There  ", "address": "12 Market St", "description": "Pour-overs."}
 			c, w := newTestContext(t, http.MethodPost, "/api/cafes", body, nil, 1, models.RoleAdmin)

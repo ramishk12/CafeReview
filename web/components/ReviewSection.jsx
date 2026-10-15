@@ -9,6 +9,10 @@ import ReviewForm from './ReviewForm'
 
 const ORDERS = {
   newest: { label: 'Newest', compare: (a, b) => new Date(b.created_at) - new Date(a.created_at) },
+  visit: {
+    label: 'Latest visit',
+    compare: (a, b) => String(b.visited_on || '').localeCompare(String(a.visited_on || '')) || new Date(b.created_at) - new Date(a.created_at),
+  },
   highest: { label: 'Highest rated', compare: (a, b) => b.rating - a.rating || new Date(b.created_at) - new Date(a.created_at) },
   lowest: { label: 'Lowest rated', compare: (a, b) => a.rating - b.rating || new Date(b.created_at) - new Date(a.created_at) },
 }
@@ -19,13 +23,15 @@ export function reviewPhotos(review) {
   return (review.images || []).map((img) => ({ id: img.id, url: img.url, alt: `Photo by ${review.author_name}` }))
 }
 
-// Review list, sorting, photo gallery, and the review form for the signed-in user.
+// Review list, sorting, photo gallery, and the review form. A user can write one
+// review per visit, so several of their reviews may appear here. Each of their
+// own reviews can be edited in place.
 export default function ReviewSection({ cafe, reviews }) {
   const { user } = useAuth()
   const [order, setOrder] = useState('newest')
+  const [editingId, setEditingId] = useState(null)
   const [lightbox, setLightbox] = useState(null) // { images, index } or null
 
-  const mine = user ? reviews.find((r) => r.user_id === user.id) : null
   const sorted = useMemo(() => [...reviews].sort(ORDERS[order].compare), [reviews, order])
 
   // Every photo for this cafe, in review order, for the gallery and the lightbox.
@@ -37,9 +43,11 @@ export default function ReviewSection({ cafe, reviews }) {
   return (
     <>
       {user ? (
-        <div className="mb-10">
-          <ReviewForm key={mine?.id ?? 'new'} cafeId={cafe.id} existing={mine} />
-        </div>
+        editingId === null && (
+          <div className="mb-10">
+            <ReviewForm key="new" cafeId={cafe.id} />
+          </div>
+        )
       ) : (
         <div className="card mb-10 flex flex-wrap items-center justify-between gap-4 p-6">
           <p className="text-slate-600 dark:text-slate-300">Share your experience with {cafe.name}.</p>
@@ -93,11 +101,16 @@ export default function ReviewSection({ cafe, reviews }) {
         <ul className="grid gap-4">
           {sorted.map((review) => (
             <li key={review.id}>
-              <ReviewCard
-                review={review}
-                isOwner={user?.id === review.user_id}
-                onOpenPhoto={(index) => openPhoto(reviewPhotos(review), index)}
-              />
+              {editingId === review.id ? (
+                <ReviewForm cafeId={cafe.id} existing={review} onDone={() => setEditingId(null)} />
+              ) : (
+                <ReviewCard
+                  review={review}
+                  isOwner={user?.id === review.user_id}
+                  onOpenPhoto={(index) => openPhoto(reviewPhotos(review), index)}
+                  onEdit={() => setEditingId(review.id)}
+                />
+              )}
             </li>
           ))}
         </ul>

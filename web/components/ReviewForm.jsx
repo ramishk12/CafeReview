@@ -11,13 +11,19 @@ const MAX_BODY = 2000
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
-// Creates a review, or edits the current user's review when `existing` is set.
-// New photos are uploaded one at a time after the review itself is saved.
-export default function ReviewForm({ cafeId, existing }) {
+function today() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+// Creates a review (a visit), or edits one when `existing` is set. New photos
+// are uploaded one at a time after the review itself is saved. onDone is called
+// after a successful save, so a parent can leave edit mode.
+export default function ReviewForm({ cafeId, existing, onDone }) {
   const router = useRouter()
   const toast = useToast()
   const [rating, setRating] = useState(existing?.rating ?? 5)
   const [body, setBody] = useState(existing?.body ?? '')
+  const [visitedOn, setVisitedOn] = useState(existing?.visited_on ?? today())
   const [files, setFiles] = useState([]) // { file, url }
   const [error, setError] = useState('')
   const [progress, setProgress] = useState('')
@@ -58,7 +64,7 @@ export default function ReviewForm({ cafeId, existing }) {
 
     let review
     try {
-      const payload = { rating, body: body.trim() }
+      const payload = { rating, body: body.trim(), visited_on: visitedOn }
       review = existing ? await updateReview(existing.id, payload) : await createReview(cafeId, payload)
     } catch (err) {
       setError(err.message)
@@ -86,6 +92,7 @@ export default function ReviewForm({ cafeId, existing }) {
       toast.show(existing ? 'Review updated' : 'Review posted')
     }
     setFiles([])
+    onDone?.()
     router.refresh()
   }
 
@@ -93,12 +100,29 @@ export default function ReviewForm({ cafeId, existing }) {
     <form onSubmit={handleSubmit} className="card grid gap-5 p-6 sm:p-7">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-lg font-semibold tracking-tight">{existing ? 'Edit your review' : 'Write a review'}</h3>
+        {existing && onDone && (
+          <button type="button" onClick={onDone} className="btn btn-ghost px-3 py-1.5 text-sm">
+            Cancel
+          </button>
+        )}
       </div>
 
       <div className="grid gap-1.5">
         <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Rating</span>
         <StarPicker value={rating} onChange={setRating} />
       </div>
+
+      <label className="label">
+        Visit date
+        <input
+          type="date"
+          className="field w-auto"
+          value={visitedOn}
+          max={today()}
+          onChange={(e) => setVisitedOn(e.target.value)}
+          required
+        />
+      </label>
 
       <label className="label">
         Your review

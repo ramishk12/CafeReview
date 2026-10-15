@@ -18,10 +18,11 @@ describe('cafeTheme helpers', () => {
     expect(formatDate('2026-10-08T23:30:00Z')).toBe('Oct 8, 2026')
   })
 
-  it('labels review counts', () => {
+  it('labels review and reviewer counts', () => {
     expect(ratingLabel(0)).toBe('No reviews yet')
     expect(ratingLabel(1)).toBe('1 review')
+    expect(ratingLabel(1, 1)).toBe('1 review from 1 person')
     expect(ratingLabel(3)).toBe('3 reviews')
-    expect(ratingLabel(3, 4.5)).toBe('3 reviews · 4.5 avg')
+    expect(ratingLabel(3, 2)).toBe('3 reviews from 2 people')
   })
 })

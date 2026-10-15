@@ -19,13 +19,14 @@ type User struct {
 }
 
 type Cafe struct {
-	ID          int       `json:"id"`
-	Name        string    `json:"name"`
-	Address     string    `json:"address"`
-	Description string    `json:"description"`
-	AvgRating   float64   `json:"avg_rating"`
-	ReviewCount int       `json:"review_count"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID            int       `json:"id"`
+	Name          string    `json:"name"`
+	Address       string    `json:"address"`
+	Description   string    `json:"description"`
+	AvgRating     float64   `json:"avg_rating"`
+	ReviewCount   int       `json:"review_count"`
+	ReviewerCount int       `json:"reviewer_count"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 type Review struct {
@@ -35,6 +36,7 @@ type Review struct {
 	AuthorName string        `json:"author_name"`
 	Rating     int           `json:"rating"`
 	Body       string        `json:"body"`
+	VisitedOn  string        `json:"visited_on"`
 	Images     []ReviewImage `json:"images"`
 	CreatedAt  time.Time     `json:"created_at"`
 	UpdatedAt  time.Time     `json:"updated_at"`

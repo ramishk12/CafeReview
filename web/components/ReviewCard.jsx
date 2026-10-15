@@ -1,6 +1,6 @@
 'use client'
 
-import { Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { deleteReview } from '@/lib/api'
@@ -9,7 +9,7 @@ import { useToast } from '@/context/ToastContext'
 import Avatar from './Avatar'
 import Stars from './Stars'
 
-export default function ReviewCard({ review, isOwner, onOpenPhoto }) {
+export default function ReviewCard({ review, isOwner, onOpenPhoto, onEdit }) {
   const router = useRouter()
   const toast = useToast()
   const [deleting, setDeleting] = useState(false)
@@ -35,8 +35,8 @@ export default function ReviewCard({ review, isOwner, onOpenPhoto }) {
         <Avatar name={review.author_name} />
         <div className="min-w-0 flex-1">
           <p className="font-semibold leading-tight">{review.author_name}</p>
-          <time dateTime={review.created_at} className="text-xs text-slate-500 dark:text-slate-400">
-            {formatDate(review.created_at)}
+          <time dateTime={review.visited_on || review.created_at} className="text-xs text-slate-500 dark:text-slate-400">
+            {review.visited_on ? `Visited ${formatDate(review.visited_on)}` : formatDate(review.created_at)}
           </time>
         </div>
         <Stars value={review.rating} size={15} />
@@ -68,6 +68,11 @@ export default function ReviewCard({ review, isOwner, onOpenPhoto }) {
 
       {isOwner && (
         <div className="mt-4 flex items-center gap-3 border-t border-slate-200/70 pt-4 dark:border-white/5">
+          {onEdit && (
+            <button type="button" onClick={onEdit} className="btn btn-ghost px-3.5 py-2 text-sm">
+              <Pencil size={15} aria-hidden="true" /> Edit
+            </button>
+          )}
           <button type="button" onClick={handleDelete} disabled={deleting} className="btn btn-danger px-3.5 py-2 text-sm">
             <Trash2 size={15} aria-hidden="true" /> {deleting ? 'Deleting…' : 'Delete'}
           </button>
