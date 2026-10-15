@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -131,6 +132,7 @@ func loadImagesForReviews(reviewIDs []int) (map[int][]models.ReviewImage, error)
 	}
 	defer rows.Close()
 
+	var imageIDs []int
 	for rows.Next() {
 		var img models.ReviewImage
 		var filename string
@@ -139,8 +141,124 @@ func loadImagesForReviews(reviewIDs []int) (map[int][]models.ReviewImage, error)
 		}
 		img.URL = Uploads.URL(filename)
 		result[img.ReviewID] = append(result[img.ReviewID], img)
+		imageIDs = append(imageIDs, img.ID)
 	}
-	return result, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	tagsByImage, err := loadTagsForImages(imageIDs)
+	if err != nil {
+		return nil, err
+	}
+	for reviewID, imgs := range result {
+		for i := range imgs {
+			imgs[i].Tags = tagsByImage[imgs[i].ID]
+			if imgs[i].Tags == nil {
+				imgs[i].Tags = []models.Tag{}
+			}
+		}
+		result[reviewID] = imgs
+	}
+	return result, nil
+}
+
+// requireImageAccess loads the review that owns the image and writes 404 or 403
+// if the current user may not change it. Admins may tag any image.
+func requireImageAccess(c *gin.Context, imageID int) bool {
+	var ownerID int
+	err := database.DB.QueryRow(
+		`SELECT r.user_id FROM review_images ri JOIN reviews r ON r.id = ri.review_id WHERE ri.id = $1`, imageID,
+	).Scan(&ownerID)
+	if errors.Is(err, sql.ErrNoRows) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Image not found"})
+		return false
+	}
+	if err != nil {
+		apierror.Internal(c, err)
+		return false
+	}
+	isOwner := ownerID == auth.CurrentUserID(c)
+	if !isOwner && auth.CurrentRole(c) != models.RoleAdmin {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only tag your own photos"})
+		return false
+	}
+	return true
+}
+
+// SetReviewImageTags replaces the tags on a review image. The image owner or an
+// admin may do this.
+func SetReviewImageTags(c *gin.Context) {
+	imageID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	if !requireImageAccess(c, imageID) {
+		return
+	}
+
+	var req struct {
+		TagIDs []int `json:"tag_ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	ids := uniqueInts(req.TagIDs)
+	if len(ids) > 0 {
+		placeholders := make([]string, len(ids))
+		args := make([]any, len(ids))
+		for i, id := range ids {
+			args[i] = id
+			placeholders[i] = fmt.Sprintf("$%d", i+1)
+		}
+		var count int
+		query := fmt.Sprintf(
+			`SELECT COUNT(*) FROM tags WHERE scope = 'image' AND status = 'approved' AND id IN (%s)`,
+			strings.Join(placeholders, ", "))
+		if err := database.DB.QueryRow(query, args...).Scan(&count); err != nil {
+			apierror.Internal(c, err)
+			return
+		}
+		if count != len(ids) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "One or more tags are invalid"})
+			return
+		}
+	}
+
+	tx, err := database.DB.Begin()
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM review_image_tags WHERE image_id = $1`, imageID); err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	for _, tagID := range ids {
+		if _, err := tx.Exec(`INSERT INTO review_image_tags (image_id, tag_id) VALUES ($1, $2)`, imageID, tagID); err != nil {
+			apierror.Internal(c, err)
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+
+	tagsByImage, err := loadTagsForImages([]int{imageID})
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	tags := tagsByImage[imageID]
+	if tags == nil {
+		tags = []models.Tag{}
+	}
+	c.JSON(http.StatusOK, gin.H{"image_id": imageID, "tags": tags})
 }
 
 // requireReviewOwner loads the review's owner and writes 404 or 403 if the

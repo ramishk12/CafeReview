@@ -88,7 +88,12 @@ export default async function CafePage({ params }) {
         </div>
       )}
 
-      <CafeBackgroundEditor cafeId={cafe.id} backgroundUrl={cafe.background_image_url} />
+      <CafeBackgroundEditor
+        cafeId={cafe.id}
+        backgroundUrl={cafe.background_image_url}
+        backgroundSource={cafe.background_source}
+        images={reviews.flatMap((r) => r.images ?? [])}
+      />
 
       <CafeTagEditor cafeId={cafe.id} initialTagIds={(cafe.tags ?? []).map((t) => t.id)} />
 

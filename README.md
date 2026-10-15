@@ -60,6 +60,9 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Signing in set
 | PUT | `/cafes/:id/tags` | Admin. Body: `{"tag_ids": [...]}`, replaces the set |
 | PUT | `/cafes/:id/background` | Admin. Multipart field `image` (JPEG/PNG/WebP, up to 5 MB) |
 | DELETE | `/cafes/:id/background` | Admin |
+| PUT | `/cafes/:id/background/review-image` | Admin. Body: `{"image_id": id}`, picks a review photo |
+| DELETE | `/cafes/:id/background/review-image` | Admin |
+| PUT | `/review-images/:id/tags` | Owner or admin. Body: `{"tag_ids": [...]}` |
 | GET | `/cafes/:id/reviews` | Query: `sort` (`newest`, `highest`, `lowest`; default `newest`), `limit` (1-100), `offset` |
 | POST | `/cafes/:id/reviews` | One review per user per cafe per day. Body includes `visited_on` (YYYY-MM-DD, defaults to today) |
 | PUT | `/reviews/:id` | Owner only |

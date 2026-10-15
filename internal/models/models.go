@@ -19,18 +19,21 @@ type User struct {
 }
 
 type Cafe struct {
-	ID              int        `json:"id"`
-	Name            string     `json:"name"`
-	Address         string     `json:"address"`
-	Description     string     `json:"description"`
-	AvgRating       float64    `json:"avg_rating"`
-	ReviewCount     int        `json:"review_count"`
-	ReviewerCount   int        `json:"reviewer_count"`
-	Closed          bool       `json:"closed"`
-	ClosedAt        *time.Time `json:"closed_at"`
-	BackgroundImage string     `json:"background_image_url"`
-	CreatedAt       time.Time  `json:"created_at"`
-	Tags            []Tag      `json:"tags"`
+	ID                int        `json:"id"`
+	Name              string     `json:"name"`
+	Address           string     `json:"address"`
+	Description       string     `json:"description"`
+	AvgRating         float64    `json:"avg_rating"`
+	ReviewCount       int        `json:"review_count"`
+	ReviewerCount     int        `json:"reviewer_count"`
+	Closed            bool       `json:"closed"`
+	ClosedAt          *time.Time `json:"closed_at"`
+	BackgroundImage   string     `json:"background_image_url"`
+	BackgroundImageID *int       `json:"background_image_id"`
+	// BackgroundSource is "review_image", "uploaded", or "" when there is none.
+	BackgroundSource string    `json:"background_source"`
+	CreatedAt        time.Time `json:"created_at"`
+	Tags             []Tag     `json:"tags"`
 }
 
 type Tag struct {
@@ -57,5 +60,6 @@ type ReviewImage struct {
 	ID        int       `json:"id"`
 	ReviewID  int       `json:"review_id"`
 	URL       string    `json:"url"`
+	Tags      []Tag     `json:"tags"`
 	CreatedAt time.Time `json:"created_at"`
 }

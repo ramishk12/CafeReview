@@ -25,7 +25,7 @@ func TestGetCafe(t *testing.T) {
 	t.Run("Returns the cafe with its rating summary", func(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
 			m.ExpectQuery(`WHERE c\.id = \$1`).WithArgs(1).
-				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "Pour-overs.", now, nil, nil, 4.5, 2, 2))
+				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "Pour-overs.", now, nil, nil, nil, nil, 4.5, 2, 2))
 			m.ExpectQuery(`FROM cafe_tags`).WithArgs(1).WillReturnRows(tagRows())
 
 			c, w := newTestContext(t, http.MethodGet, "/api/cafes/1", nil, params, 0, "")
@@ -82,7 +82,7 @@ func TestCreateCafe(t *testing.T) {
 			m.ExpectQuery(`INSERT INTO cafes`).WithArgs("Bean There", "12 Market St", "Pour-overs.").
 				WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(3))
 			m.ExpectQuery(`WHERE c\.id = \$1`).WithArgs(3).
-				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(3, "Bean There", "12 Market St", "Pour-overs.", now, nil, nil, 0.0, 0, 0))
+				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(3, "Bean There", "12 Market St", "Pour-overs.", now, nil, nil, nil, nil, 0.0, 0, 0))
 
 			body := map[string]string{"name": "  Bean There  ", "address": "12 Market St", "description": "Pour-overs."}
 			c, w := newTestContext(t, http.MethodPost, "/api/cafes", body, nil, 1, models.RoleAdmin)
@@ -124,7 +124,7 @@ func TestCloseAndReopenCafe(t *testing.T) {
 			m.ExpectExec(`UPDATE cafes SET closed_at = \(CURRENT_TIMESTAMP AT TIME ZONE 'UTC'\) WHERE id = \$1`).WithArgs(1).
 				WillReturnResult(sqlmock.NewResult(0, 1))
 			m.ExpectQuery(`WHERE c\.id = \$1`).WithArgs(1).
-				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, now, nil, 4.5, 2, 2))
+				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, now, nil, nil, nil, 4.5, 2, 2))
 
 			c, w := newTestContext(t, http.MethodPost, "/api/cafes/1/close", nil, params, 1, models.RoleAdmin)
 			CloseCafe(c)
@@ -140,7 +140,7 @@ func TestCloseAndReopenCafe(t *testing.T) {
 			m.ExpectExec(`UPDATE cafes SET closed_at = NULL WHERE id = \$1`).WithArgs(1).
 				WillReturnResult(sqlmock.NewResult(0, 1))
 			m.ExpectQuery(`WHERE c\.id = \$1`).WithArgs(1).
-				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, nil, nil, 4.5, 2, 2))
+				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, nil, nil, nil, nil, 4.5, 2, 2))
 
 			c, w := newTestContext(t, http.MethodPost, "/api/cafes/1/reopen", nil, params, 1, models.RoleAdmin)
 			ReopenCafe(c)
@@ -175,7 +175,7 @@ func TestSetCafeBackground(t *testing.T) {
 			m.ExpectExec(`UPDATE cafes SET background_image_path = \$1 WHERE id = \$2`).WithArgs(sqlmock.AnyArg(), 1).
 				WillReturnResult(sqlmock.NewResult(0, 1))
 			m.ExpectQuery(`WHERE c\.id = \$1`).WithArgs(1).
-				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, nil, "bg.png", 4.5, 2, 2))
+				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, nil, nil, "bg.png", nil, 4.5, 2, 2))
 
 			body, ct := multipartImage(t, "bg.png", pngBytes)
 			w := httptest.NewRecorder()
@@ -222,10 +222,69 @@ func TestDeleteCafeBackground(t *testing.T) {
 		m.ExpectExec(`UPDATE cafes SET background_image_path = NULL WHERE id = \$1`).WithArgs(1).
 			WillReturnResult(sqlmock.NewResult(0, 1))
 		m.ExpectQuery(`WHERE c\.id = \$1`).WithArgs(1).
-			WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, nil, nil, 4.5, 2, 2))
+			WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, nil, nil, nil, nil, 4.5, 2, 2))
 
 		c, w := newTestContext(t, http.MethodDelete, "/api/cafes/1/background", nil, params, 1, models.RoleAdmin)
 		DeleteCafeBackground(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.NoError(t, m.ExpectationsWereMet())
+	})
+}
+
+func TestSetCafeReviewImageBackground(t *testing.T) {
+	now := time.Now()
+	params := gin.Params{{Key: "id", Value: "1"}}
+
+	t.Run("Sets the background to a review image", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT EXISTS`).WithArgs(5, 1).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+			m.ExpectExec(`UPDATE cafes SET background_image_id = \$1 WHERE id = \$2`).WithArgs(5, 1).
+				WillReturnResult(sqlmock.NewResult(0, 1))
+			m.ExpectQuery(`WHERE c\.id = \$1`).WithArgs(1).
+				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, nil, nil, nil, "photo.jpg", 4.5, 2, 2))
+
+			c, w := newTestContext(t, http.MethodPut, "/api/cafes/1/background/review-image", map[string]any{"image_id": 5}, params, 1, models.RoleAdmin)
+			SetCafeReviewImageBackground(c)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.Contains(t, w.Body.String(), "review_image")
+			assert.NoError(t, m.ExpectationsWereMet())
+		})
+	})
+
+	t.Run("Returns 400 when the image is not part of the cafe", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT EXISTS`).WithArgs(5, 1).WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+
+			c, w := newTestContext(t, http.MethodPut, "/api/cafes/1/background/review-image", map[string]any{"image_id": 5}, params, 1, models.RoleAdmin)
+			SetCafeReviewImageBackground(c)
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+		})
+	})
+
+	t.Run("Returns 400 for a missing image_id", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			c, w := newTestContext(t, http.MethodPut, "/api/cafes/1/background/review-image", map[string]any{}, params, 1, models.RoleAdmin)
+			SetCafeReviewImageBackground(c)
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.NoError(t, m.ExpectationsWereMet())
+		})
+	})
+}
+
+func TestClearCafeReviewImageBackground(t *testing.T) {
+	now := time.Now()
+	params := gin.Params{{Key: "id", Value: "1"}}
+
+	withMockDB(t, func(m sqlmock.Sqlmock) {
+		m.ExpectExec(`UPDATE cafes SET background_image_id = NULL WHERE id = \$1`).WithArgs(1).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+		m.ExpectQuery(`WHERE c\.id = \$1`).WithArgs(1).
+			WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, nil, nil, nil, nil, 4.5, 2, 2))
+
+		c, w := newTestContext(t, http.MethodDelete, "/api/cafes/1/background/review-image", nil, params, 1, models.RoleAdmin)
+		ClearCafeReviewImageBackground(c)
 
 		assert.Equal(t, http.StatusOK, w.Code)
 		assert.NoError(t, m.ExpectationsWereMet())

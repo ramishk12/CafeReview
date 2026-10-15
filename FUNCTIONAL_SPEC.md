@@ -59,10 +59,17 @@ current behaviour.
   selected tag. Admins edit a cafe's tags from the cafe page. The tag framework is
   shared by cafes, reviews, and images through a `scope` column, and a `pending`
   status is reserved for future user-suggested tags awaiting approval.
+- **Photo tags:** review photos can be tagged from the image-scoped set (`Drink`,
+  `Interior`, `Exterior`). The photo's owner tags their own photos; admins may tag
+  any. A photo can have several tags.
 - **Background image (admin):** an admin can upload a background image for a
   cafe (JPEG/PNG/WebP, up to 5 MB, sanitized like review photos). It is shown
   behind the cafe header with a dark overlay for readable text; without one the
   header keeps its colour gradient. Admins can replace or remove it.
+- **Background from a photo (admin):** an admin can also choose one of the cafe's
+  review photos as the background, optionally filtered by photo tag. A chosen
+  photo wins over the uploaded image; clearing it falls back to the uploaded
+  image (or the gradient).
 
 ## 3. Reviews
 
@@ -145,6 +152,9 @@ account.
 | PUT | `/cafes/:id/tags` | Admin. Body: `{"tag_ids": [...]}`, replaces the set |
 | PUT | `/cafes/:id/background` | Admin. Multipart field `image` |
 | DELETE | `/cafes/:id/background` | Admin |
+| PUT | `/cafes/:id/background/review-image` | Admin. Body: `{"image_id": id}` |
+| DELETE | `/cafes/:id/background/review-image` | Admin |
+| PUT | `/review-images/:id/tags` | Owner or admin. Body: `{"tag_ids": [...]}` |
 | GET | `/cafes/:id/reviews` | `sort`, `limit`, `offset` |
 | POST | `/cafes/:id/reviews` | One per user per cafe per day |
 | PUT | `/reviews/:id` | Owner only |
@@ -176,10 +186,11 @@ account.
 - `tags`: id, name, category, scope (`cafe`/`review`/`image`), status
   (`approved`/`pending`), created_at. Unique on (scope, name).
 - `cafe_tags`: cafe_id, tag_id.
+- `review_image_tags`: image_id, tag_id.
 
 ## 11. Not built yet
 
-Tracked as issues: review tags, image tags and cafe backgrounds,
+Tracked as issues: review tags,
 closing and archiving cafes, user lists, following cafes, social sign-in,
 account settings, public profiles, review reports and moderation, helpful votes,
 review edit history, review drafts, maps integration, Dockerfiles, structured

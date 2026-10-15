@@ -34,6 +34,7 @@ func NewRouter(uploadDir string) *gin.Engine {
 	authed.Use(auth.RequireCSRF())
 	authed.GET("/auth/me", auth.Me)
 	authed.POST("/auth/logout", auth.Logout)
+	authed.PUT("/review-images/:id/tags", handlers.SetReviewImageTags)
 
 	api.GET("/tags", handlers.ListTags)
 	api.GET("/cafes", handlers.ListCafes)
@@ -51,6 +52,8 @@ func NewRouter(uploadDir string) *gin.Engine {
 	admin.POST("/cafes", handlers.CreateCafe)
 	admin.PUT("/cafes/:id/tags", handlers.SetCafeTags)
 	admin.PUT("/cafes/:id/background", handlers.SetCafeBackground)
+	admin.PUT("/cafes/:id/background/review-image", handlers.SetCafeReviewImageBackground)
+	admin.DELETE("/cafes/:id/background/review-image", handlers.ClearCafeReviewImageBackground)
 	admin.DELETE("/cafes/:id/background", handlers.DeleteCafeBackground)
 	admin.POST("/cafes/:id/close", handlers.CloseCafe)
 	admin.POST("/cafes/:id/reopen", handlers.ReopenCafe)
