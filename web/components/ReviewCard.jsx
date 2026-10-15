@@ -1,6 +1,7 @@
 'use client'
 
 import { Pencil, Trash2 } from 'lucide-react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { deleteReview } from '@/lib/api'
@@ -35,7 +36,9 @@ export default function ReviewCard({ review, isOwner, onOpenPhoto, onEdit }) {
       <header className="flex items-center gap-3">
         <Avatar name={review.author_name} />
         <div className="min-w-0 flex-1">
-          <p className="font-semibold leading-tight">{review.author_name}</p>
+          <Link href={`/users/${review.user_id}`} className="font-semibold leading-tight no-underline hover:underline">
+            {review.author_name}
+          </Link>
           <time dateTime={review.visited_on || review.created_at} className="text-xs text-slate-500 dark:text-slate-400">
             {review.visited_on ? `Visited ${formatDate(review.visited_on)}` : formatDate(review.created_at)}
           </time>

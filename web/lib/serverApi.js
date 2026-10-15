@@ -25,5 +25,18 @@ export async function listCafes({ q, sort, tags, page = 1, pageSize = 24 } = {})
   return { cafes, total }
 }
 export const listTags = () => get('/tags?scope=cafe')
+export const getUser = (id) => get(`/users/${id}`)
+
+export async function listUserReviews(id, { page = 1, pageSize = 20 } = {}) {
+  const params = new URLSearchParams()
+  params.set('limit', pageSize)
+  params.set('offset', (page - 1) * pageSize)
+
+  const res = await fetch(`${BACKEND_URL}/api/users/${id}/reviews?${params.toString()}`, { cache: 'no-store' })
+  if (!res.ok) throw new Error(`API /users/${id}/reviews failed with status ${res.status}`)
+  const total = Number(res.headers.get('X-Total-Count') || 0)
+  const reviews = await res.json()
+  return { reviews, total }
+}
 export const getCafe = (id) => get(`/cafes/${id}`)
 export const listReviews = (cafeId) => get(`/cafes/${cafeId}/reviews`)

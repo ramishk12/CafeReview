@@ -52,6 +52,8 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Signing in set
 | GET | `/cafes` | Query: `q` (search name or address, max 100 chars), `tags` (comma-separated tag IDs, AND), `sort` (`name`, `rating`, `reviews`, `newest`; default `name`), `limit` (1-100), `offset` |
 | GET | `/cafes/:id` | |
 | GET | `/tags` | Query: `scope` (`cafe`, `review`, `image`). Approved tags only |
+| GET | `/users/:id` | Public profile: display name, join date, review count |
+| GET | `/users/:id/reviews` | A user's reviews, newest first, with `cafe_name`. Paged |
 | POST | `/cafes` | Admin |
 | PUT | `/cafes/:id` | Admin. Replaces name, address, and description |
 | DELETE | `/cafes/:id` | Admin. Also deletes the cafe's reviews and photo files |
