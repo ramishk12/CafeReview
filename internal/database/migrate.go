@@ -132,6 +132,12 @@ func Migrate() error {
 			PRIMARY KEY (image_id, tag_id)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_review_image_tags_tag_id ON review_image_tags(tag_id)`,
+		`CREATE TABLE IF NOT EXISTS review_tags (
+			review_id INTEGER NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+			tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+			PRIMARY KEY (review_id, tag_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_review_tags_tag_id ON review_tags(tag_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_reviews_cafe_id ON reviews(cafe_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_review_images_review_id ON review_images(review_id)`,
 	}

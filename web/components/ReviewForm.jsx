@@ -3,7 +3,7 @@
 import { ImagePlus, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
-import { createReview, updateReview, uploadReviewImage } from '@/lib/api'
+import { createReview, listTags, updateReview, uploadReviewImage } from '@/lib/api'
 import { useToast } from '@/context/ToastContext'
 import StarPicker from './StarPicker'
 
@@ -24,6 +24,8 @@ export default function ReviewForm({ cafeId, existing, onDone }) {
   const [rating, setRating] = useState(existing?.rating ?? 5)
   const [body, setBody] = useState(existing?.body ?? '')
   const [visitedOn, setVisitedOn] = useState(existing?.visited_on ?? today())
+  const [tagOptions, setTagOptions] = useState([])
+  const [tagIds, setTagIds] = useState(() => (existing?.tags ?? []).map((t) => t.id))
   const [files, setFiles] = useState([]) // { file, url }
   const [error, setError] = useState('')
   const [progress, setProgress] = useState('')
@@ -35,6 +37,14 @@ export default function ReviewForm({ cafeId, existing, onDone }) {
     filesRef.current = files
   }, [files])
   useEffect(() => () => filesRef.current.forEach((f) => URL.revokeObjectURL(f.url)), [])
+
+  useEffect(() => {
+    listTags('review')
+      .then(setTagOptions)
+      .catch(() => {})
+  }, [])
+
+  const toggleTag = (id) => setTagIds((current) => (current.includes(id) ? current.filter((t) => t !== id) : [...current, id]))
 
   const addFiles = (list) => {
     for (const file of list) {
@@ -64,7 +74,7 @@ export default function ReviewForm({ cafeId, existing, onDone }) {
 
     let review
     try {
-      const payload = { rating, body: body.trim(), visited_on: visitedOn }
+      const payload = { rating, body: body.trim(), visited_on: visitedOn, tag_ids: tagIds }
       review = existing ? await updateReview(existing.id, payload) : await createReview(cafeId, payload)
     } catch (err) {
       setError(err.message)
@@ -139,6 +149,30 @@ export default function ReviewForm({ cafeId, existing, onDone }) {
           {body.length}/{MAX_BODY}
         </span>
       </label>
+
+      {tagOptions.length > 0 && (
+        <div className="grid gap-2">
+          <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Tags (optional)</span>
+          <div className="flex flex-wrap gap-2">
+            {tagOptions.map((tag) => {
+              const active = tagIds.includes(tag.id)
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => toggleTag(tag.id)}
+                  aria-pressed={active}
+                  className={`rounded-full px-3 py-1 text-sm transition ${
+                    active ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200'
+                  }`}
+                >
+                  {tag.name}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-2">
         <span className="text-sm font-medium text-slate-600 dark:text-slate-400">Photos (optional)</span>

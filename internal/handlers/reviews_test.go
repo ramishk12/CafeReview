@@ -42,6 +42,7 @@ func TestListReviews(t *testing.T) {
 				m.ExpectQuery(`SELECT COUNT\(\*\) FROM reviews WHERE cafe_id = \$1`).WithArgs(1).WillReturnRows(countRow(2))
 				m.ExpectQuery(`ORDER BY r\.created_at DESC, r\.id DESC`).WithArgs(1).WillReturnRows(reviewListRows(now))
 				m.ExpectQuery(`FROM review_images`).WillReturnRows(sqlmock.NewRows(imageCols))
+				m.ExpectQuery(`FROM review_tags`).WillReturnRows(sqlmock.NewRows([]string{"review_id", "id", "name", "category", "scope"}))
 			},
 			expectedStatus: http.StatusOK,
 			expectedTotal:  "2",
@@ -54,6 +55,7 @@ func TestListReviews(t *testing.T) {
 				m.ExpectQuery(`COUNT`).WithArgs(1).WillReturnRows(countRow(2))
 				m.ExpectQuery(`ORDER BY r\.rating DESC, r\.created_at DESC`).WithArgs(1).WillReturnRows(reviewListRows(now))
 				m.ExpectQuery(`FROM review_images`).WillReturnRows(sqlmock.NewRows(imageCols))
+				m.ExpectQuery(`FROM review_tags`).WillReturnRows(sqlmock.NewRows([]string{"review_id", "id", "name", "category", "scope"}))
 			},
 			expectedStatus: http.StatusOK,
 			expectedTotal:  "2",
@@ -66,6 +68,7 @@ func TestListReviews(t *testing.T) {
 				m.ExpectQuery(`COUNT`).WithArgs(1).WillReturnRows(countRow(2))
 				m.ExpectQuery(`ORDER BY r\.rating ASC, r\.created_at DESC`).WithArgs(1).WillReturnRows(reviewListRows(now))
 				m.ExpectQuery(`FROM review_images`).WillReturnRows(sqlmock.NewRows(imageCols))
+				m.ExpectQuery(`FROM review_tags`).WillReturnRows(sqlmock.NewRows([]string{"review_id", "id", "name", "category", "scope"}))
 			},
 			expectedStatus: http.StatusOK,
 			expectedTotal:  "2",
@@ -79,6 +82,7 @@ func TestListReviews(t *testing.T) {
 				m.ExpectQuery(`LIMIT \$2 OFFSET \$3`).WithArgs(1, 1, 1).
 					WillReturnRows(sqlmock.NewRows(reviewCols).AddRow(11, 1, 8, "Sam Lee", 3, "Fine.", now, now, now))
 				m.ExpectQuery(`FROM review_images`).WillReturnRows(sqlmock.NewRows(imageCols))
+				m.ExpectQuery(`FROM review_tags`).WillReturnRows(sqlmock.NewRows([]string{"review_id", "id", "name", "category", "scope"}))
 			},
 			expectedStatus: http.StatusOK,
 			expectedTotal:  "2",

@@ -64,7 +64,7 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Signing in set
 | DELETE | `/cafes/:id/background/review-image` | Admin |
 | PUT | `/review-images/:id/tags` | Owner or admin. Body: `{"tag_ids": [...]}` |
 | GET | `/cafes/:id/reviews` | Query: `sort` (`newest`, `highest`, `lowest`; default `newest`), `limit` (1-100), `offset` |
-| POST | `/cafes/:id/reviews` | One review per user per cafe per day. Body includes `visited_on` (YYYY-MM-DD, defaults to today) |
+| POST | `/cafes/:id/reviews` | One review per user per cafe per day. Body includes `visited_on` (YYYY-MM-DD, defaults to today) and optional `tag_ids` |
 | PUT | `/reviews/:id` | Owner only |
 | DELETE | `/reviews/:id` | Owner only. Also deletes the review's photo files |
 | POST | `/reviews/:id/images` | Owner only. Multipart field `image`: JPEG, PNG, or WebP, up to 5 MB. Privacy metadata (GPS, device, comments) is stripped on upload; colour profiles and orientation are kept |

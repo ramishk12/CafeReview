@@ -52,6 +52,7 @@ type Review struct {
 	Body       string        `json:"body"`
 	VisitedOn  string        `json:"visited_on"`
 	Images     []ReviewImage `json:"images"`
+	Tags       []Tag         `json:"tags"`
 	CreatedAt  time.Time     `json:"created_at"`
 	UpdatedAt  time.Time     `json:"updated_at"`
 }

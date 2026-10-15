@@ -40,6 +40,47 @@ type reviewRequest struct {
 	Rating    int    `json:"rating"`
 	Body      string `json:"body"`
 	VisitedOn string `json:"visited_on"`
+	TagIDs    []int  `json:"tag_ids"`
+}
+
+// reviewTagIDsValid reports whether all IDs are approved, review-scoped tags.
+func reviewTagIDsValid(ids []int) (bool, error) {
+	if len(ids) == 0 {
+		return true, nil
+	}
+	placeholders := make([]string, len(ids))
+	args := make([]any, len(ids))
+	for i, id := range ids {
+		args[i] = id
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+	}
+	var count int
+	query := fmt.Sprintf(
+		`SELECT COUNT(*) FROM tags WHERE scope = 'review' AND status = 'approved' AND id IN (%s)`,
+		strings.Join(placeholders, ", "))
+	if err := database.DB.QueryRow(query, args...).Scan(&count); err != nil {
+		return false, err
+	}
+	return count == len(ids), nil
+}
+
+// setReviewTags replaces a review's tags.
+func setReviewTags(reviewID int, tagIDs []int) error {
+	ids := uniqueInts(tagIDs)
+	tx, err := database.DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.Exec(`DELETE FROM review_tags WHERE review_id = $1`, reviewID); err != nil {
+		return err
+	}
+	for _, tagID := range ids {
+		if _, err := tx.Exec(`INSERT INTO review_tags (review_id, tag_id) VALUES ($1, $2)`, reviewID, tagID); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 // normalizeVisitedOn returns the visit date as YYYY-MM-DD, defaulting to today,
@@ -104,6 +145,14 @@ func fetchReview(id int) (models.Review, error) {
 	r.Images = images[id]
 	if r.Images == nil {
 		r.Images = []models.ReviewImage{}
+	}
+	tags, err := loadTagsForReviews([]int{id})
+	if err != nil {
+		return r, err
+	}
+	r.Tags = tags[id]
+	if r.Tags == nil {
+		r.Tags = []models.Tag{}
 	}
 	return r, nil
 }
@@ -338,6 +387,17 @@ func ListReviews(c *gin.Context) {
 			reviews[i].Images = []models.ReviewImage{}
 		}
 	}
+	tags, err := loadTagsForReviews(ids)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	for i := range reviews {
+		reviews[i].Tags = tags[reviews[i].ID]
+		if reviews[i].Tags == nil {
+			reviews[i].Tags = []models.Tag{}
+		}
+	}
 	setTotalCount(c, total)
 	c.JSON(http.StatusOK, reviews)
 }
@@ -379,6 +439,13 @@ func CreateReview(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
 		return
 	}
+	if ok, err := reviewTagIDsValid(uniqueInts(req.TagIDs)); err != nil {
+		apierror.Internal(c, err)
+		return
+	} else if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "One or more tags are invalid"})
+		return
+	}
 
 	var id int
 	err = database.DB.QueryRow(
@@ -394,6 +461,10 @@ func CreateReview(c *gin.Context) {
 		return
 	}
 	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	if err := setReviewTags(id, req.TagIDs); err != nil {
 		apierror.Internal(c, err)
 		return
 	}
@@ -442,6 +513,13 @@ func UpdateReview(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
 		return
 	}
+	if ok, err := reviewTagIDsValid(uniqueInts(req.TagIDs)); err != nil {
+		apierror.Internal(c, err)
+		return
+	} else if !ok {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "One or more tags are invalid"})
+		return
+	}
 
 	_, err = database.DB.Exec(
 		`UPDATE reviews SET rating = $1, body = $2, visited_on = $3, updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
@@ -453,6 +531,10 @@ func UpdateReview(c *gin.Context) {
 		return
 	}
 	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	if err := setReviewTags(reviewID, req.TagIDs); err != nil {
 		apierror.Internal(c, err)
 		return
 	}
