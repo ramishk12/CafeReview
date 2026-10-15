@@ -24,6 +24,75 @@ var allowedImageTypes = map[string]string{
 	"image/webp": ".webp",
 }
 
+// storeUploadedImage reads the multipart "image" field, validates and sanitizes
+// it, and stores it. It writes an error response and returns ok=false on failure.
+func storeUploadedImage(c *gin.Context) (filename string, ok bool) {
+	// Allow some slack for multipart boundaries and headers; the per-file
+	// size check below is the real limit.
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxImageBytes+64<<10)
+
+	fh, err := c.FormFile("image")
+	if err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Image must be 5 MB or smaller"})
+			return "", false
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "An image file is required in the 'image' field"})
+		return "", false
+	}
+	if fh.Size > maxImageBytes {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Image must be 5 MB or smaller"})
+		return "", false
+	}
+
+	f, err := fh.Open()
+	if err != nil {
+		apierror.Internal(c, err)
+		return "", false
+	}
+	defer f.Close()
+
+	// Sniff the real content type instead of trusting the client header.
+	head := make([]byte, 512)
+	n, err := io.ReadFull(f, head)
+	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
+		apierror.Internal(c, err)
+		return "", false
+	}
+	ext, allowed := allowedImageTypes[http.DetectContentType(head[:n])]
+	if !allowed {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Only JPEG, PNG, and WebP images are allowed"})
+		return "", false
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		apierror.Internal(c, err)
+		return "", false
+	}
+
+	// The body is already size-limited, so reading it into memory is bounded.
+	raw, err := io.ReadAll(f)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "The image could not be read"})
+		return "", false
+	}
+
+	// Remove privacy metadata (GPS, device, comments) while keeping colour
+	// profiles and the orientation, and drop any data appended after the image.
+	clean, err := images.Sanitize(raw)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "The image could not be processed"})
+		return "", false
+	}
+
+	stored, err := Uploads.Save(ext, bytes.NewReader(clean))
+	if err != nil {
+		apierror.Internal(c, err)
+		return "", false
+	}
+	return stored, true
+}
+
 // UploadReviewImage accepts a multipart "image" field and attaches it to a
 // review owned by the current user.
 func UploadReviewImage(c *gin.Context) {
@@ -35,72 +104,13 @@ func UploadReviewImage(c *gin.Context) {
 		return
 	}
 
-	// Allow some slack for multipart boundaries and headers; the per-file
-	// size check below is the real limit.
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxImageBytes+64<<10)
-
-	fh, err := c.FormFile("image")
-	if err != nil {
-		var tooLarge *http.MaxBytesError
-		if errors.As(err, &tooLarge) {
-			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Image must be 5 MB or smaller"})
-			return
-		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": "An image file is required in the 'image' field"})
-		return
-	}
-	if fh.Size > maxImageBytes {
-		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "Image must be 5 MB or smaller"})
-		return
-	}
-
-	f, err := fh.Open()
-	if err != nil {
-		apierror.Internal(c, err)
-		return
-	}
-	defer f.Close()
-
-	// Sniff the real content type instead of trusting the client header.
-	head := make([]byte, 512)
-	n, err := io.ReadFull(f, head)
-	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
-		apierror.Internal(c, err)
-		return
-	}
-	ext, allowed := allowedImageTypes[http.DetectContentType(head[:n])]
-	if !allowed {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Only JPEG, PNG, and WebP images are allowed"})
-		return
-	}
-	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		apierror.Internal(c, err)
-		return
-	}
-
-	// The body is already size-limited, so reading it into memory is bounded.
-	raw, err := io.ReadAll(f)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "The image could not be read"})
-		return
-	}
-
-	// Remove privacy metadata (GPS, device, comments) while keeping colour
-	// profiles and the orientation, and drop any data appended after the image.
-	clean, err := images.Sanitize(raw)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "The image could not be processed"})
-		return
-	}
-
-	filename, err := Uploads.Save(ext, bytes.NewReader(clean))
-	if err != nil {
-		apierror.Internal(c, err)
+	filename, ok := storeUploadedImage(c)
+	if !ok {
 		return
 	}
 
 	var img models.ReviewImage
-	err = database.DB.QueryRow(
+	err := database.DB.QueryRow(
 		`INSERT INTO review_images (review_id, filename) VALUES ($1, $2) RETURNING id, created_at`,
 		reviewID, filename,
 	).Scan(&img.ID, &img.CreatedAt)

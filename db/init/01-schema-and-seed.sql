@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS cafes (
     address TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
-    closed_at TIMESTAMP
+    closed_at TIMESTAMP,
+    background_image_path TEXT
 );
 
 CREATE TABLE IF NOT EXISTS reviews (

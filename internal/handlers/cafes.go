@@ -17,7 +17,7 @@ import (
 )
 
 const cafeSelect = `
-	SELECT c.id, c.name, c.address, c.description, c.created_at, c.closed_at,
+	SELECT c.id, c.name, c.address, c.description, c.created_at, c.closed_at, c.background_image_path,
 	       COALESCE(AVG(r.rating), 0), COUNT(r.id), COUNT(DISTINCT r.user_id)
 	FROM cafes c
 	LEFT JOIN reviews r ON r.cafe_id = c.id`
@@ -43,14 +43,20 @@ func parseID(c *gin.Context, name string) (int, bool) {
 
 func scanCafe(row interface{ Scan(...any) error }) (models.Cafe, error) {
 	var cafe models.Cafe
-	var closedAt sql.NullTime
+	var (
+		closedAt   sql.NullTime
+		background sql.NullString
+	)
 	err := row.Scan(
-		&cafe.ID, &cafe.Name, &cafe.Address, &cafe.Description, &cafe.CreatedAt, &closedAt,
+		&cafe.ID, &cafe.Name, &cafe.Address, &cafe.Description, &cafe.CreatedAt, &closedAt, &background,
 		&cafe.AvgRating, &cafe.ReviewCount, &cafe.ReviewerCount,
 	)
 	if closedAt.Valid {
 		cafe.Closed = true
 		cafe.ClosedAt = &closedAt.Time
+	}
+	if background.Valid && background.String != "" {
+		cafe.BackgroundImage = Uploads.URL(background.String)
 	}
 	return cafe, err
 }
@@ -290,6 +296,16 @@ func DeleteCafe(c *gin.Context) {
 		return
 	}
 
+	// The background image is stored on the cafe, so collect it too.
+	var background sql.NullString
+	if err := database.DB.QueryRow(`SELECT background_image_path FROM cafes WHERE id = $1`, id).Scan(&background); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		apierror.Internal(c, err)
+		return
+	}
+	if background.Valid && background.String != "" {
+		filenames = append(filenames, background.String)
+	}
+
 	res, err := database.DB.Exec(`DELETE FROM cafes WHERE id = $1`, id)
 	if err != nil {
 		apierror.Internal(c, err)
@@ -343,6 +359,80 @@ func setCafeClosed(c *gin.Context, closed bool) {
 	if affected == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Cafe not found"})
 		return
+	}
+
+	cafe, err := fetchCafe(id)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, cafe)
+}
+
+// SetCafeBackground sets or replaces a cafe's background image. Admin-only.
+func SetCafeBackground(c *gin.Context) {
+	id, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+
+	var old sql.NullString
+	err := database.DB.QueryRow(`SELECT background_image_path FROM cafes WHERE id = $1`, id).Scan(&old)
+	if errors.Is(err, sql.ErrNoRows) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Cafe not found"})
+		return
+	}
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+
+	filename, ok := storeUploadedImage(c)
+	if !ok {
+		return
+	}
+
+	if _, err := database.DB.Exec(`UPDATE cafes SET background_image_path = $1 WHERE id = $2`, filename, id); err != nil {
+		_ = Uploads.Delete(filename)
+		apierror.Internal(c, err)
+		return
+	}
+	if old.Valid && old.String != "" {
+		_ = Uploads.Delete(old.String) // best effort; the row already points at the new file
+	}
+
+	cafe, err := fetchCafe(id)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, cafe)
+}
+
+// DeleteCafeBackground clears a cafe's background image. Admin-only.
+func DeleteCafeBackground(c *gin.Context) {
+	id, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+
+	var old sql.NullString
+	err := database.DB.QueryRow(`SELECT background_image_path FROM cafes WHERE id = $1`, id).Scan(&old)
+	if errors.Is(err, sql.ErrNoRows) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Cafe not found"})
+		return
+	}
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+
+	if _, err := database.DB.Exec(`UPDATE cafes SET background_image_path = NULL WHERE id = $1`, id); err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	if old.Valid && old.String != "" {
+		_ = Uploads.Delete(old.String)
 	}
 
 	cafe, err := fetchCafe(id)

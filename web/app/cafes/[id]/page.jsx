@@ -2,6 +2,7 @@ import { ArrowLeft, MapPin } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import CafeAdminActions from '@/components/CafeAdminActions'
+import CafeBackgroundEditor from '@/components/CafeBackgroundEditor'
 import CafeTagEditor from '@/components/CafeTagEditor'
 import ReviewSection from '@/components/ReviewSection'
 import Stars from '@/components/Stars'
@@ -39,8 +40,15 @@ export default async function CafePage({ params }) {
         <CafeAdminActions cafeId={cafe.id} cafeName={cafe.name} closed={cafe.closed} />
       </div>
 
-      <header className={`relative mt-4 mb-10 overflow-hidden rounded-3xl p-8 text-white shadow-xl ${cafeGradient(cafe.name)}`}>
-        <div className="absolute inset-0 bg-black/10" aria-hidden="true" />
+      <header
+        className={`relative mt-4 mb-10 overflow-hidden rounded-3xl p-8 text-white shadow-xl ${cafe.background_image_url ? 'bg-slate-900' : cafeGradient(cafe.name)}`}
+        style={
+          cafe.background_image_url
+            ? { backgroundImage: `url(${cafe.background_image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+            : undefined
+        }
+      >
+        <div className={`absolute inset-0 ${cafe.background_image_url ? 'bg-black/50' : 'bg-black/10'}`} aria-hidden="true" />
         <div className="relative">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-4xl font-extrabold tracking-tight drop-shadow-sm">{cafe.name}</h1>
@@ -79,6 +87,8 @@ export default async function CafePage({ params }) {
           still be deleted.
         </div>
       )}
+
+      <CafeBackgroundEditor cafeId={cafe.id} backgroundUrl={cafe.background_image_url} />
 
       <CafeTagEditor cafeId={cafe.id} initialTagIds={(cafe.tags ?? []).map((t) => t.id)} />
 

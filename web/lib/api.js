@@ -102,6 +102,14 @@ export const reopenCafe = (id) => request(`/cafes/${id}/reopen`, { method: 'POST
 export const listTags = (scope = 'cafe') => request(`/tags?scope=${encodeURIComponent(scope)}`)
 export const setCafeTags = (id, tagIds) => request(`/cafes/${id}/tags`, { method: 'PUT', body: { tag_ids: tagIds } })
 
+// Cafe background image
+export function setCafeBackground(id, file) {
+  const form = new FormData()
+  form.append('image', file)
+  return request(`/cafes/${id}/background`, { method: 'PUT', form })
+}
+export const deleteCafeBackground = (id) => request(`/cafes/${id}/background`, { method: 'DELETE' })
+
 // Reviews
 export const createReview = (cafeId, review) => request(`/cafes/${cafeId}/reviews`, { method: 'POST', body: review })
 export const updateReview = (reviewId, review) => request(`/reviews/${reviewId}`, { method: 'PUT', body: review })

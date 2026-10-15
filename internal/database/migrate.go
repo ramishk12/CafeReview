@@ -35,10 +35,10 @@ func Migrate() error {
 			address TEXT NOT NULL DEFAULT '',
 			description TEXT NOT NULL DEFAULT '',
 			created_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
-			closed_at TIMESTAMP
+			closed_at TIMESTAMP,
+			background_image_path TEXT
 		)`,
-		// A closed cafe keeps its reviews but accepts no new ones and no edits.
-		// Added for databases created before the column existed.
+		// Columns added after the table existed, for databases created earlier.
 		`DO $$
 		BEGIN
 			IF NOT EXISTS (
@@ -46,6 +46,12 @@ func Migrate() error {
 				WHERE table_name = 'cafes' AND column_name = 'closed_at'
 			) THEN
 				ALTER TABLE cafes ADD COLUMN closed_at TIMESTAMP;
+			END IF;
+			IF NOT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name = 'cafes' AND column_name = 'background_image_path'
+			) THEN
+				ALTER TABLE cafes ADD COLUMN background_image_path TEXT;
 			END IF;
 		END $$;`,
 		`CREATE TABLE IF NOT EXISTS reviews (
