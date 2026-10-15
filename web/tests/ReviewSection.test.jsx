@@ -3,9 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ReviewSection, { reviewPhotos } from '@/components/ReviewSection'
 
 let authState = { user: null }
+let params = new URLSearchParams()
+const replace = vi.fn()
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ refresh: vi.fn(), replace }),
+  usePathname: () => '/cafes/1',
+  useSearchParams: () => params,
 }))
 vi.mock('next/link', () => ({
   default: ({ href, children }) => <a href={href}>{children}</a>,
@@ -43,6 +47,43 @@ describe('reviewPhotos', () => {
 describe('ReviewSection', () => {
   beforeEach(() => {
     authState = { user: null }
+    params = new URLSearchParams()
+    replace.mockReset()
+  })
+
+  it('filters by minimum rating', () => {
+    params = new URLSearchParams('rating=4')
+    render(<ReviewSection cafe={cafe} reviews={reviews} />)
+    expect(screen.getByText('Excellent.')).toBeInTheDocument()
+    expect(screen.queryByText('Too cold.')).not.toBeInTheDocument()
+  })
+
+  it('filters to reviews with photos', () => {
+    params = new URLSearchParams('photos=1')
+    render(<ReviewSection cafe={cafe} reviews={reviews} />)
+    expect(screen.getByText('Excellent.')).toBeInTheDocument()
+    expect(screen.queryByText('Too cold.')).not.toBeInTheDocument()
+  })
+
+  it('filters to the signed-in user\'s reviews', () => {
+    authState = { user: { id: 7, display_name: 'Demo User', role: 'user' } }
+    params = new URLSearchParams('mine=1')
+    render(<ReviewSection cafe={cafe} reviews={reviews} />)
+    expect(screen.getByText('Excellent.')).toBeInTheDocument()
+    expect(screen.queryByText('Too cold.')).not.toBeInTheDocument()
+  })
+
+  it('filters by review tag', () => {
+    params = new URLSearchParams('tags=1')
+    render(<ReviewSection cafe={cafe} reviews={reviews} />)
+    expect(screen.getByText('Excellent.')).toBeInTheDocument()
+    expect(screen.queryByText('Too cold.')).not.toBeInTheDocument()
+  })
+
+  it('shows a filter empty state when nothing matches', () => {
+    params = new URLSearchParams('rating=5')
+    render(<ReviewSection cafe={cafe} reviews={[reviews[1]]} />)
+    expect(screen.getByText('No reviews match your filters.')).toBeInTheDocument()
   })
 
   it('asks signed-out visitors to log in instead of showing a form', () => {
@@ -59,7 +100,7 @@ describe('ReviewSection', () => {
 
   it('re-sorts by highest rated', () => {
     render(<ReviewSection cafe={cafe} reviews={reviews} />)
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'highest' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort' }), { target: { value: 'highest' } })
     const bodies = screen.getAllByText(/Excellent\.|Too cold\./).map((el) => el.textContent)
     expect(bodies).toEqual(['Excellent.', 'Too cold.'])
   })

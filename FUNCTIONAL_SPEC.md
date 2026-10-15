@@ -92,6 +92,10 @@ current behaviour.
 - **Review tags:** a review can be tagged by its author with admin-curated
   visit tags (for example `Seasonal menu`, `Limited edition`, `Event`). Tags
   appear on the review and can be set in the review form.
+- **Filtering:** the review list on a cafe page can be filtered by minimum
+  rating, reviews with photos, review tags, and the signed-in user's own
+  reviews. Filters run in the browser and are kept in the URL so the view is
+  shareable.
 
 ## 4. Images
 
@@ -170,7 +174,7 @@ account.
 ## 9. Web pages
 
 - `/` browse cafes (search, tag filters, sort, and pages; state is in the URL).
-- `/cafes/:id` cafe detail, reviews, photos, and the review form.
+- `/cafes/:id` cafe detail, reviews (with sorting and filtering), photos, and the review form.
 - `/cafes/new` admin: add a cafe.
 - `/cafes/:id/edit` admin: edit an existing cafe.
 - `/login`, `/register`, `/verify` account pages.

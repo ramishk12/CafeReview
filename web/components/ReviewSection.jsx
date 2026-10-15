@@ -1,8 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
+import { listTags } from '@/lib/api'
 import PhotoLightbox from './PhotoLightbox'
 import ReviewCard from './ReviewCard'
 import ReviewForm from './ReviewForm'
@@ -18,28 +20,74 @@ const ORDERS = {
 }
 const PREVIEW_PHOTOS = 12
 
+const chipClass = (active) =>
+  `rounded-full px-3 py-1 text-sm transition ${
+    active
+      ? 'bg-indigo-600 text-white'
+      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200 dark:hover:bg-white/20'
+  }`
+
 // Maps a review's images to the shape PhotoLightbox expects.
 export function reviewPhotos(review) {
   return (review.images || []).map((img) => ({ id: img.id, url: img.url, alt: `Photo by ${review.author_name}` }))
 }
 
-// Review list, sorting, photo gallery, and the review form. A user can write one
-// review per visit, so several of their reviews may appear here. Each of their
-// own reviews can be edited in place.
+// Review list, sorting, filtering, photo gallery, and the review form. Filters
+// (minimum rating, has photos, review tags, mine) run in the browser and are kept
+// in the URL so the view is shareable.
 export default function ReviewSection({ cafe, reviews }) {
   const { user } = useAuth()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
   const closed = Boolean(cafe.closed)
   const [order, setOrder] = useState('newest')
   const [editingId, setEditingId] = useState(null)
   const [lightbox, setLightbox] = useState(null) // { images, index } or null
+  const [reviewTags, setReviewTags] = useState([])
+
+  useEffect(() => {
+    listTags('review')
+      .then(setReviewTags)
+      .catch(() => {})
+  }, [])
+
+  const minRating = Number(searchParams.get('rating')) || 0
+  const onlyPhotos = searchParams.get('photos') === '1'
+  const onlyMine = searchParams.get('mine') === '1'
+  const tagParam = searchParams.get('tags') || ''
+  const filterTagIds = useMemo(() => tagParam.split(',').filter(Boolean).map(Number), [tagParam])
+
+  const setParam = (updates) => {
+    const next = new URLSearchParams(searchParams.toString())
+    for (const [key, value] of Object.entries(updates)) {
+      if (value === undefined || value === null || value === '' || value === false) next.delete(key)
+      else next.set(key, String(value))
+    }
+    const qs = next.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname)
+  }
 
   const sorted = useMemo(() => [...reviews].sort(ORDERS[order].compare), [reviews, order])
+  const visible = useMemo(
+    () =>
+      sorted.filter((review) => {
+        if (minRating && review.rating < minRating) return false
+        if (onlyPhotos && !(review.images?.length > 0)) return false
+        if (onlyMine && user && review.user_id !== user.id) return false
+        if (filterTagIds.length > 0 && !(review.tags || []).some((t) => filterTagIds.includes(t.id))) return false
+        return true
+      }),
+    [sorted, minRating, onlyPhotos, onlyMine, user, filterTagIds],
+  )
 
   // Every photo for this cafe, in review order, for the gallery and the lightbox.
   const photos = useMemo(() => sorted.flatMap(reviewPhotos), [sorted])
 
   const openPhoto = (images, index) => setLightbox({ images, index })
   const setLightboxIndex = (index) => setLightbox((l) => (l ? { ...l, index } : l))
+  const hasFilters = minRating > 0 || onlyPhotos || onlyMine || filterTagIds.length > 0
 
   return (
     <>
@@ -100,11 +148,81 @@ export default function ReviewSection({ cafe, reviews }) {
         )}
       </div>
 
-      {sorted.length === 0 ? (
+      {reviews.length > 0 && (
+        <div className="mb-6 flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+              Rating
+              <select
+                value={minRating || ''}
+                onChange={(e) => setParam({ rating: e.target.value === '' ? undefined : e.target.value })}
+                className="field w-auto py-2 pr-8"
+              >
+                <option value="">Any</option>
+                <option value="4">4+ stars</option>
+                <option value="3">3+ stars</option>
+                <option value="2">2+ stars</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => setParam({ photos: onlyPhotos ? undefined : '1' })}
+              aria-pressed={onlyPhotos}
+              className={chipClass(onlyPhotos)}
+            >
+              With photos
+            </button>
+            {user && (
+              <button
+                type="button"
+                onClick={() => setParam({ mine: onlyMine ? undefined : '1' })}
+                aria-pressed={onlyMine}
+                className={chipClass(onlyMine)}
+              >
+                My reviews
+              </button>
+            )}
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={() => setParam({ rating: undefined, photos: undefined, mine: undefined, tags: undefined })}
+                className="text-sm font-semibold text-indigo-600 dark:text-indigo-400"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+
+          {reviewTags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold tracking-wide text-slate-400 uppercase">Tags</span>
+              {reviewTags.map((tag) => {
+                const active = filterTagIds.includes(tag.id)
+                const ids = active ? filterTagIds.filter((t) => t !== tag.id) : [...filterTagIds, tag.id]
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => setParam({ tags: ids.length ? ids.join(',') : undefined })}
+                    aria-pressed={active}
+                    className={chipClass(active)}
+                  >
+                    {tag.name}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {reviews.length === 0 ? (
         <p className="card py-12 text-center text-slate-500">No reviews yet. Be the first.</p>
+      ) : visible.length === 0 ? (
+        <p className="card py-12 text-center text-slate-500">No reviews match your filters.</p>
       ) : (
         <ul className="grid gap-4">
-          {sorted.map((review) => (
+          {visible.map((review) => (
             <li key={review.id}>
               {editingId === review.id ? (
                 <ReviewForm cafeId={cafe.id} existing={review} onDone={() => setEditingId(null)} />
