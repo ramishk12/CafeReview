@@ -117,6 +117,15 @@ export const clearCafeBackgroundImage = (id) => request(`/cafes/${id}/background
 export const setReviewImageTags = (imageId, tagIds) =>
   request(`/review-images/${imageId}/tags`, { method: 'PUT', body: { tag_ids: tagIds } })
 
+// Lists
+export const listMyLists = (cafeId) => request(`/me/lists${cafeId ? `?cafe=${cafeId}` : ''}`)
+export const createList = (name) => request('/me/lists', { method: 'POST', body: { name } })
+export const getList = (id) => request(`/lists/${id}`)
+export const renameList = (id, name) => request(`/lists/${id}`, { method: 'PUT', body: { name } })
+export const deleteList = (id) => request(`/lists/${id}`, { method: 'DELETE' })
+export const addCafeToList = (listId, cafeId) => request(`/lists/${listId}/cafes`, { method: 'POST', body: { cafe_id: cafeId } })
+export const removeCafeFromList = (listId, cafeId) => request(`/lists/${listId}/cafes/${cafeId}`, { method: 'DELETE' })
+
 // Reviews
 export const createReview = (cafeId, review) => request(`/cafes/${cafeId}/reviews`, { method: 'POST', body: review })
 export const updateReview = (reviewId, review) => request(`/reviews/${reviewId}`, { method: 'PUT', body: review })

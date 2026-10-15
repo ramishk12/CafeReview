@@ -36,6 +36,20 @@ type Cafe struct {
 	Tags             []Tag     `json:"tags"`
 }
 
+type List struct {
+	ID           int       `json:"id"`
+	Name         string    `json:"name"`
+	IsPublic     bool      `json:"is_public"`
+	CafeCount    int       `json:"cafe_count"`
+	ContainsCafe bool      `json:"contains_cafe"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+type ListDetail struct {
+	List
+	Cafes []Cafe `json:"cafes"`
+}
+
 type Tag struct {
 	ID       int    `json:"id"`
 	Name     string `json:"name"`

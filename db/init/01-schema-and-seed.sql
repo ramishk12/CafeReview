@@ -100,6 +100,39 @@ CREATE TABLE IF NOT EXISTS review_tags (
 );
 CREATE INDEX IF NOT EXISTS idx_review_tags_tag_id ON review_tags(tag_id);
 
+CREATE TABLE IF NOT EXISTS lists (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    is_public BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
+);
+CREATE INDEX IF NOT EXISTS idx_lists_user_id ON lists(user_id);
+
+CREATE TABLE IF NOT EXISTS list_cafes (
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    cafe_id INTEGER NOT NULL REFERENCES cafes(id) ON DELETE CASCADE,
+    added_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
+    PRIMARY KEY (list_id, cafe_id)
+);
+CREATE INDEX IF NOT EXISTS idx_list_cafes_cafe_id ON list_cafes(cafe_id);
+
+CREATE TABLE IF NOT EXISTS list_reviews (
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    review_id INTEGER NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+    added_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
+    PRIMARY KEY (list_id, review_id)
+);
+CREATE INDEX IF NOT EXISTS idx_list_reviews_review_id ON list_reviews(review_id);
+
+CREATE TABLE IF NOT EXISTS list_users (
+    list_id INTEGER NOT NULL REFERENCES lists(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    added_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC'),
+    PRIMARY KEY (list_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_list_users_user_id ON list_users(user_id);
+
 CREATE INDEX IF NOT EXISTS idx_reviews_cafe_id ON reviews(cafe_id);
 CREATE INDEX IF NOT EXISTS idx_review_images_review_id ON review_images(review_id);
 
