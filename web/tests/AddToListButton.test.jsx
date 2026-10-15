@@ -9,6 +9,10 @@ vi.mock('@/lib/api', () => ({
   listMyLists: (...args) => listMyLists(...args),
   addCafeToList: (...args) => addCafeToList(...args),
   removeCafeFromList: vi.fn(),
+  addUserToList: vi.fn(),
+  removeUserFromList: vi.fn(),
+  addReviewToList: vi.fn(),
+  removeReviewFromList: vi.fn(),
   createList: vi.fn(),
 }))
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ user: { id: 7 } }) }))
@@ -23,7 +27,7 @@ describe('AddToListButton', () => {
   it('adds the cafe to a list', async () => {
     listMyLists.mockResolvedValue([{ id: 1, name: 'Visited', contains_cafe: false, cafe_count: 0 }])
     addCafeToList.mockResolvedValue({})
-    render(<AddToListButton cafeId={5} />)
+    render(<AddToListButton type="cafe" id={5} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Save to list' }))
     fireEvent.click(await screen.findByRole('checkbox'))

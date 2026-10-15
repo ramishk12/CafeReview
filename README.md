@@ -72,6 +72,10 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Signing in set
 | DELETE | `/lists/:id` | Owner |
 | POST | `/lists/:id/cafes` | Owner. Body: `{"cafe_id": id}` |
 | DELETE | `/lists/:id/cafes/:cafeId` | Owner |
+| POST | `/lists/:id/users` | Owner. Body: `{"user_id": id}` |
+| DELETE | `/lists/:id/users/:userId` | Owner |
+| POST | `/lists/:id/reviews` | Owner. Body: `{"review_id": id}` |
+| DELETE | `/lists/:id/reviews/:reviewId` | Owner |
 | GET | `/cafes/:id/reviews` | Query: `sort` (`newest`, `highest`, `lowest`; default `newest`), `limit` (1-100), `offset` |
 | POST | `/cafes/:id/reviews` | One review per user per cafe per day. Body includes `visited_on` (YYYY-MM-DD, defaults to today) and optional `tag_ids` |
 | PUT | `/reviews/:id` | Owner only |

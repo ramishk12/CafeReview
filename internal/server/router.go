@@ -42,6 +42,10 @@ func NewRouter(uploadDir string) *gin.Engine {
 	authed.DELETE("/lists/:id", handlers.DeleteList)
 	authed.POST("/lists/:id/cafes", handlers.AddCafeToList)
 	authed.DELETE("/lists/:id/cafes/:cafeId", handlers.RemoveCafeFromList)
+	authed.POST("/lists/:id/users", handlers.AddUserToList)
+	authed.DELETE("/lists/:id/users/:userId", handlers.RemoveUserFromList)
+	authed.POST("/lists/:id/reviews", handlers.AddReviewToList)
+	authed.DELETE("/lists/:id/reviews/:reviewId", handlers.RemoveReviewFromList)
 
 	api.GET("/tags", handlers.ListTags)
 	api.GET("/users/:id", handlers.GetUserProfile)

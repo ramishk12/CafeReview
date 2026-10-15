@@ -99,6 +99,9 @@ func TestGetList(t *testing.T) {
 		m.ExpectQuery(`FROM list_cafes lc`).WithArgs(1).
 			WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, nil, nil, nil, nil, 4.5, 2, 2))
 		m.ExpectQuery(`FROM cafe_tags`).WillReturnRows(tagRows())
+		m.ExpectQuery(`FROM list_users lu`).WithArgs(1).WillReturnRows(sqlmock.NewRows([]string{"id", "display_name"}))
+		m.ExpectQuery(`FROM list_reviews lr`).WithArgs(1).
+			WillReturnRows(sqlmock.NewRows([]string{"id", "cafe_id", "name", "user_id", "display_name", "rating", "body", "visited_on", "created_at", "updated_at"}))
 
 		c, w := newTestContext(t, http.MethodGet, "/api/lists/1", nil, params, 7, models.RoleUser)
 		GetList(c)
@@ -247,5 +250,92 @@ func TestListOwnership(t *testing.T) {
 			GetList(c)
 			assert.Equal(t, http.StatusNotFound, w.Code)
 		})
+	})
+}
+
+func TestAddUserToList(t *testing.T) {
+	params := gin.Params{{Key: "id", Value: "1"}}
+
+	t.Run("Adds a reviewer", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT user_id FROM lists WHERE id`).WithArgs(1).
+				WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(7))
+			m.ExpectQuery(`SELECT COUNT\(\*\) FROM list_users WHERE list_id`).WithArgs(1).WillReturnRows(countRow(0))
+			m.ExpectExec(`INSERT INTO list_users`).WithArgs(1, 9).WillReturnResult(sqlmock.NewResult(0, 1))
+
+			c, w := newTestContext(t, http.MethodPost, "/api/lists/1/users", map[string]any{"user_id": 9}, params, 7, models.RoleUser)
+			AddUserToList(c)
+			c.Writer.WriteHeaderNow()
+
+			assert.Equal(t, http.StatusNoContent, w.Code)
+			assert.NoError(t, m.ExpectationsWereMet())
+		})
+	})
+
+	t.Run("Returns 409 when already in the list", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT user_id FROM lists WHERE id`).WithArgs(1).
+				WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(7))
+			m.ExpectQuery(`SELECT COUNT`).WithArgs(1).WillReturnRows(countRow(0))
+			m.ExpectExec(`INSERT INTO list_users`).WillReturnError(&pq.Error{Code: "23505"})
+
+			c, w := newTestContext(t, http.MethodPost, "/api/lists/1/users", map[string]any{"user_id": 9}, params, 7, models.RoleUser)
+			AddUserToList(c)
+			assert.Equal(t, http.StatusConflict, w.Code)
+		})
+	})
+}
+
+func TestRemoveUserFromList(t *testing.T) {
+	params := gin.Params{{Key: "id", Value: "1"}, {Key: "userId", Value: "9"}}
+
+	withMockDB(t, func(m sqlmock.Sqlmock) {
+		m.ExpectQuery(`SELECT user_id FROM lists WHERE id`).WithArgs(1).
+			WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(7))
+		m.ExpectExec(`DELETE FROM list_users WHERE list_id = \$1 AND user_id = \$2`).WithArgs(1, 9).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		c, w := newTestContext(t, http.MethodDelete, "/api/lists/1/users/9", nil, params, 7, models.RoleUser)
+		RemoveUserFromList(c)
+		c.Writer.WriteHeaderNow()
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+		assert.NoError(t, m.ExpectationsWereMet())
+	})
+}
+
+func TestAddReviewToList(t *testing.T) {
+	params := gin.Params{{Key: "id", Value: "1"}}
+
+	withMockDB(t, func(m sqlmock.Sqlmock) {
+		m.ExpectQuery(`SELECT user_id FROM lists WHERE id`).WithArgs(1).
+			WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(7))
+		m.ExpectQuery(`SELECT COUNT\(\*\) FROM list_reviews WHERE list_id`).WithArgs(1).WillReturnRows(countRow(0))
+		m.ExpectExec(`INSERT INTO list_reviews`).WithArgs(1, 10).WillReturnResult(sqlmock.NewResult(0, 1))
+
+		c, w := newTestContext(t, http.MethodPost, "/api/lists/1/reviews", map[string]any{"review_id": 10}, params, 7, models.RoleUser)
+		AddReviewToList(c)
+		c.Writer.WriteHeaderNow()
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+		assert.NoError(t, m.ExpectationsWereMet())
+	})
+}
+
+func TestRemoveReviewFromList(t *testing.T) {
+	params := gin.Params{{Key: "id", Value: "1"}, {Key: "reviewId", Value: "10"}}
+
+	withMockDB(t, func(m sqlmock.Sqlmock) {
+		m.ExpectQuery(`SELECT user_id FROM lists WHERE id`).WithArgs(1).
+			WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(7))
+		m.ExpectExec(`DELETE FROM list_reviews WHERE list_id = \$1 AND review_id = \$2`).WithArgs(1, 10).
+			WillReturnResult(sqlmock.NewResult(0, 1))
+
+		c, w := newTestContext(t, http.MethodDelete, "/api/lists/1/reviews/10", nil, params, 7, models.RoleUser)
+		RemoveReviewFromList(c)
+		c.Writer.WriteHeaderNow()
+
+		assert.Equal(t, http.StatusNoContent, w.Code)
+		assert.NoError(t, m.ExpectationsWereMet())
 	})
 }

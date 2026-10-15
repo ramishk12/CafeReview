@@ -310,6 +310,17 @@ func SetReviewImageTags(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"image_id": imageID, "tags": tags})
 }
 
+// scanReviewWithCafe scans a review row that also includes the cafe name.
+func scanReviewWithCafe(row interface{ Scan(...any) error }) (models.Review, error) {
+	var r models.Review
+	var visited time.Time
+	err := row.Scan(
+		&r.ID, &r.CafeID, &r.CafeName, &r.UserID, &r.AuthorName, &r.Rating, &r.Body, &visited, &r.CreatedAt, &r.UpdatedAt,
+	)
+	r.VisitedOn = visited.Format("2006-01-02")
+	return r, err
+}
+
 // requireReviewOwner loads the review's owner and writes 404 or 403 if the
 // current user may not modify it. It returns false when a response was written.
 func requireReviewOwner(c *gin.Context, reviewID int) bool {

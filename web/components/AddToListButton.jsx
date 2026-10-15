@@ -1,15 +1,30 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { addCafeToList, createList, listMyLists, removeCafeFromList } from '@/lib/api'
+import {
+  addCafeToList,
+  addReviewToList,
+  addUserToList,
+  createList,
+  listMyLists,
+  removeCafeFromList,
+  removeReviewFromList,
+  removeUserFromList,
+} from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 
-const IDEAS = ['Visited', 'Want to visit', 'Favourites']
+const IDEAS = ['Visited', 'Want to visit', 'Favourites', 'Trusted reviewers', 'Helpful reviews']
 
-// Signed-in users can add a cafe to their lists from its page. Renders nothing
-// when signed out.
-export default function AddToListButton({ cafeId }) {
+const CONFIG = {
+  cafe: { add: addCafeToList, remove: removeCafeFromList, flag: 'contains_cafe' },
+  user: { add: addUserToList, remove: removeUserFromList, flag: 'contains_user' },
+  review: { add: addReviewToList, remove: removeReviewFromList, flag: 'contains_review' },
+}
+
+// Signed-in users save a cafe, reviewer, or review to their lists. Renders
+// nothing when signed out. type is 'cafe', 'user', or 'review'.
+export default function AddToListButton({ type = 'cafe', id, label = 'Save to list' }) {
   const { user } = useAuth()
   const toast = useToast()
   const [open, setOpen] = useState(false)
@@ -17,24 +32,26 @@ export default function AddToListButton({ cafeId }) {
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const config = CONFIG[type]
+
   useEffect(() => {
     if (!open) return
-    listMyLists(cafeId)
+    listMyLists({ [type]: id })
       .then(setLists)
       .catch(() => {})
-  }, [open, cafeId])
+  }, [open, type, id])
 
   if (!user) return null
 
   const toggle = async (list) => {
     setBusy(true)
     try {
-      if (list.contains_cafe) {
-        await removeCafeFromList(list.id, cafeId)
-        setLists((current) => current.map((l) => (l.id === list.id ? { ...l, contains_cafe: false, cafe_count: l.cafe_count - 1 } : l)))
+      if (list[config.flag]) {
+        await config.remove(list.id, id)
+        setLists((current) => current.map((l) => (l.id === list.id ? { ...l, [config.flag]: false } : l)))
       } else {
-        await addCafeToList(list.id, cafeId)
-        setLists((current) => current.map((l) => (l.id === list.id ? { ...l, contains_cafe: true, cafe_count: l.cafe_count + 1 } : l)))
+        await config.add(list.id, id)
+        setLists((current) => current.map((l) => (l.id === list.id ? { ...l, [config.flag]: true } : l)))
       }
     } catch (err) {
       toast.show(err.message, 'error')
@@ -48,8 +65,8 @@ export default function AddToListButton({ cafeId }) {
     setBusy(true)
     try {
       const created = await createList(name.trim())
-      await addCafeToList(created.id, cafeId)
-      setLists((current) => [{ ...created, contains_cafe: true, cafe_count: 1 }, ...current])
+      await config.add(created.id, id)
+      setLists((current) => [{ ...created, [config.flag]: true }, ...current])
       setName('')
       toast.show('List created')
     } catch (err) {
@@ -62,7 +79,7 @@ export default function AddToListButton({ cafeId }) {
   return (
     <div className="relative">
       <button type="button" onClick={() => setOpen((o) => !o)} className="btn btn-ghost px-3.5 py-2 text-sm">
-        Save to list
+        {label}
       </button>
       {open && (
         <div className="absolute right-0 z-20 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-xl dark:border-white/10 dark:bg-slate-900">
@@ -72,7 +89,7 @@ export default function AddToListButton({ cafeId }) {
             {lists.map((list) => (
               <li key={list.id}>
                 <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={list.contains_cafe} disabled={busy} onChange={() => toggle(list)} />
+                  <input type="checkbox" checked={Boolean(list[config.flag])} disabled={busy} onChange={() => toggle(list)} />
                   {list.name}
                 </label>
               </li>

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import AddToListButton from '@/components/AddToListButton'
 import Stars from '@/components/Stars'
 import { getUser, listUserReviews } from '@/lib/serverApi'
 import { avatarColor, formatDate, initials } from '@/lib/cafeTheme'
@@ -40,6 +41,9 @@ export default async function ProfilePage({ params, searchParams }) {
           <p className="text-sm text-slate-500 dark:text-slate-400">
             Joined {formatDate(user.created_at)} · {user.review_count} {user.review_count === 1 ? 'review' : 'reviews'}
           </p>
+        </div>
+        <div className="ml-auto">
+          <AddToListButton type="user" id={user.id} label="Save to list" />
         </div>
       </header>
 
