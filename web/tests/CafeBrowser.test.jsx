@@ -1,9 +1,14 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import CafeBrowser from '@/components/CafeBrowser'
+
+let authState = { isAdmin: false }
 
 vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }) => <a href={href} {...rest}>{children}</a>,
+}))
+vi.mock('@/context/AuthContext', () => ({
+  useAuth: () => authState,
 }))
 
 const cafes = [
@@ -17,6 +22,10 @@ function cardNames() {
 }
 
 describe('CafeBrowser', () => {
+  beforeEach(() => {
+    authState = { isAdmin: false }
+  })
+
   it('sorts by top rated by default', () => {
     render(<CafeBrowser cafes={cafes} />)
     expect(cardNames()).toEqual(['Matcha House', 'Bean There', 'Morning Crumb'])
@@ -49,5 +58,15 @@ describe('CafeBrowser', () => {
     render(<CafeBrowser cafes={cafes} />)
     const link = within(screen.getByRole('list')).getAllByRole('link')[0]
     expect(link).toHaveAttribute('href', '/cafes/3')
+  })
+
+  it('shows an admin edit quick-action only to admins', () => {
+    render(<CafeBrowser cafes={cafes} />)
+    expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument()
+
+    authState = { isAdmin: true }
+    render(<CafeBrowser cafes={cafes} />)
+    const editLinks = screen.getAllByRole('link', { name: 'Edit' })
+    expect(editLinks[0]).toHaveAttribute('href', '/cafes/3/edit')
   })
 })
