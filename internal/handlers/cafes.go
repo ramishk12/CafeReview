@@ -17,9 +17,11 @@ import (
 )
 
 const cafeSelect = `
-	SELECT c.id, c.name, c.address, c.description, c.created_at, c.closed_at, c.background_image_path,
+	SELECT c.id, c.name, c.address, c.description, c.created_at, c.closed_at,
+	       c.background_image_id, c.background_image_path, bri.filename,
 	       COALESCE(AVG(r.rating), 0), COUNT(r.id), COUNT(DISTINCT r.user_id)
 	FROM cafes c
+	LEFT JOIN review_images bri ON bri.id = c.background_image_id
 	LEFT JOIN reviews r ON r.cafe_id = c.id`
 
 // cafeSortClauses maps the accepted ?sort= values to ORDER BY clauses.
@@ -46,17 +48,30 @@ func scanCafe(row interface{ Scan(...any) error }) (models.Cafe, error) {
 	var (
 		closedAt   sql.NullTime
 		background sql.NullString
+		bgID       sql.NullInt64
+		bgImage    sql.NullString
 	)
 	err := row.Scan(
-		&cafe.ID, &cafe.Name, &cafe.Address, &cafe.Description, &cafe.CreatedAt, &closedAt, &background,
+		&cafe.ID, &cafe.Name, &cafe.Address, &cafe.Description, &cafe.CreatedAt, &closedAt,
+		&bgID, &background, &bgImage,
 		&cafe.AvgRating, &cafe.ReviewCount, &cafe.ReviewerCount,
 	)
 	if closedAt.Valid {
 		cafe.Closed = true
 		cafe.ClosedAt = &closedAt.Time
 	}
-	if background.Valid && background.String != "" {
+	if bgID.Valid {
+		id := int(bgID.Int64)
+		cafe.BackgroundImageID = &id
+	}
+	// A chosen review image wins over an uploaded background.
+	switch {
+	case bgImage.Valid && bgImage.String != "":
+		cafe.BackgroundImage = Uploads.URL(bgImage.String)
+		cafe.BackgroundSource = "review_image"
+	case background.Valid && background.String != "":
 		cafe.BackgroundImage = Uploads.URL(background.String)
+		cafe.BackgroundSource = "uploaded"
 	}
 	return cafe, err
 }
@@ -436,6 +451,83 @@ func DeleteCafeBackground(c *gin.Context) {
 	}
 
 	cafe, err := fetchCafe(id)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, cafe)
+}
+
+// SetCafeReviewImageBackground sets a cafe's background to one of its review
+// images. The image must belong to a review of this cafe. Admin-only.
+func SetCafeReviewImageBackground(c *gin.Context) {
+	cafeID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+
+	var req struct {
+		ImageID int `json:"image_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.ImageID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "A valid image_id is required"})
+		return
+	}
+
+	// The image must belong to a review of this cafe.
+	var exists bool
+	err := database.DB.QueryRow(`
+		SELECT EXISTS(
+			SELECT 1 FROM review_images ri
+			JOIN reviews r ON r.id = ri.review_id
+			WHERE ri.id = $1 AND r.cafe_id = $2
+		)`, req.ImageID, cafeID).Scan(&exists)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	if !exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "That image does not belong to this cafe"})
+		return
+	}
+
+	if _, err := database.DB.Exec(`UPDATE cafes SET background_image_id = $1 WHERE id = $2`, req.ImageID, cafeID); err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+
+	cafe, err := fetchCafe(cafeID)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, cafe)
+}
+
+// ClearCafeReviewImageBackground clears a cafe's chosen review-image background,
+// falling back to any uploaded background. Admin-only.
+func ClearCafeReviewImageBackground(c *gin.Context) {
+	cafeID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+
+	res, err := database.DB.Exec(`UPDATE cafes SET background_image_id = NULL WHERE id = $1`, cafeID)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	if affected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Cafe not found"})
+		return
+	}
+
+	cafe, err := fetchCafe(cafeID)
 	if err != nil {
 		apierror.Internal(c, err)
 		return

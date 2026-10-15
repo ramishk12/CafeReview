@@ -31,6 +31,17 @@ func SeedTags() error {
 			return fmt.Errorf("seed tag %q: %w", t.name, err)
 		}
 	}
+
+	imageTags := []struct{ name, category string }{
+		{"Drink", "photo"},
+		{"Interior", "photo"},
+		{"Exterior", "photo"},
+	}
+	for _, t := range imageTags {
+		if _, err := DB.Exec(`INSERT INTO tags (name, category, scope) VALUES ($1, $2, 'image')`, t.name, t.category); err != nil {
+			return fmt.Errorf("seed tag %q: %w", t.name, err)
+		}
+	}
 	return nil
 }
 

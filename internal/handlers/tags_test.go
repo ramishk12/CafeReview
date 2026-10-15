@@ -82,7 +82,7 @@ func TestSetCafeTags(t *testing.T) {
 			m.ExpectExec(`INSERT INTO cafe_tags`).WithArgs(1, 2).WillReturnResult(sqlmock.NewResult(0, 1))
 			m.ExpectCommit()
 			m.ExpectQuery(`WHERE c\.id = \$1`).WithArgs(1).
-				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, nil, nil, 4.5, 2, 2))
+				WillReturnRows(sqlmock.NewRows(cafeCols).AddRow(1, "Bean There", "12 Market St", "", now, nil, nil, nil, nil, 4.5, 2, 2))
 			m.ExpectQuery(`FROM cafe_tags`).WithArgs(1).
 				WillReturnRows(sqlmock.NewRows([]string{"cafe_id", "id", "name", "category", "scope"}).
 					AddRow(1, 1, "Quiet", "vibe", "cafe"))

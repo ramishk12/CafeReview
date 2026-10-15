@@ -7,6 +7,7 @@ import { deleteReview } from '@/lib/api'
 import { formatDate } from '@/lib/cafeTheme'
 import { useToast } from '@/context/ToastContext'
 import Avatar from './Avatar'
+import ReviewImageTagger from './ReviewImageTagger'
 import Stars from './Stars'
 
 export default function ReviewCard({ review, isOwner, onOpenPhoto, onEdit }) {
@@ -61,6 +62,7 @@ export default function ReviewCard({ review, isOwner, onOpenPhoto, onEdit }) {
                   className="h-32 w-32 object-cover transition duration-300 hover:scale-105 sm:h-36 sm:w-36"
                 />
               </button>
+              {isOwner && <ReviewImageTagger image={img} />}
             </li>
           ))}
         </ul>

@@ -339,3 +339,70 @@ func TestUpdateReviewWhenClosed(t *testing.T) {
 		assert.NoError(t, m.ExpectationsWereMet(), "no update should happen for a closed cafe")
 	})
 }
+
+func TestSetReviewImageTags(t *testing.T) {
+	params := gin.Params{{Key: "id", Value: "5"}}
+
+	t.Run("Owner replaces the tags", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT r\.user_id FROM review_images ri JOIN reviews r`).WithArgs(5).
+				WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(7))
+			m.ExpectQuery(`SELECT COUNT\(\*\) FROM tags WHERE scope = 'image'`).WithArgs(1).
+				WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+			m.ExpectBegin()
+			m.ExpectExec(`DELETE FROM review_image_tags WHERE image_id = \$1`).WithArgs(5).WillReturnResult(sqlmock.NewResult(0, 1))
+			m.ExpectExec(`INSERT INTO review_image_tags`).WithArgs(5, 1).WillReturnResult(sqlmock.NewResult(0, 1))
+			m.ExpectCommit()
+			m.ExpectQuery(`FROM review_image_tags`).WithArgs(5).
+				WillReturnRows(sqlmock.NewRows([]string{"image_id", "id", "name", "category", "scope"}).
+					AddRow(5, 1, "Exterior", "photo", "image"))
+
+			c, w := newTestContext(t, http.MethodPut, "/api/review-images/5/tags", map[string]any{"tag_ids": []int{1}}, params, 7, models.RoleUser)
+			SetReviewImageTags(c)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.Contains(t, w.Body.String(), "Exterior")
+			assert.NoError(t, m.ExpectationsWereMet())
+		})
+	})
+
+	t.Run("Admins can tag any image", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT r\.user_id FROM review_images`).WithArgs(5).
+				WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(9))
+			m.ExpectBegin()
+			m.ExpectExec(`DELETE FROM review_image_tags`).WithArgs(5).WillReturnResult(sqlmock.NewResult(0, 1))
+			m.ExpectCommit()
+			m.ExpectQuery(`FROM review_image_tags`).WithArgs(5).
+				WillReturnRows(sqlmock.NewRows([]string{"image_id", "id", "name", "category", "scope"}))
+
+			c, w := newTestContext(t, http.MethodPut, "/api/review-images/5/tags", map[string]any{"tag_ids": []int{}}, params, 1, models.RoleAdmin)
+			SetReviewImageTags(c)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.NoError(t, m.ExpectationsWereMet())
+		})
+	})
+
+	t.Run("Returns 403 for another user", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT r\.user_id FROM review_images`).WithArgs(5).
+				WillReturnRows(sqlmock.NewRows([]string{"user_id"}).AddRow(9))
+
+			c, w := newTestContext(t, http.MethodPut, "/api/review-images/5/tags", map[string]any{"tag_ids": []int{}}, params, 7, models.RoleUser)
+			SetReviewImageTags(c)
+			assert.Equal(t, http.StatusForbidden, w.Code)
+		})
+	})
+
+	t.Run("Returns 404 when the image does not exist", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`SELECT r\.user_id FROM review_images`).WithArgs(5).
+				WillReturnRows(sqlmock.NewRows([]string{"user_id"}))
+
+			c, w := newTestContext(t, http.MethodPut, "/api/review-images/5/tags", map[string]any{"tag_ids": []int{}}, params, 7, models.RoleUser)
+			SetReviewImageTags(c)
+			assert.Equal(t, http.StatusNotFound, w.Code)
+		})
+	})
+}

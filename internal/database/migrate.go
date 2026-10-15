@@ -87,6 +87,9 @@ func Migrate() error {
 			filename VARCHAR(255) NOT NULL,
 			created_at TIMESTAMP NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
 		)`,
+		// A cafe's background can come from an uploaded file (background_image_path)
+		// or a review image chosen by an admin (background_image_id, which wins).
+		`ALTER TABLE cafes ADD COLUMN IF NOT EXISTS background_image_id INTEGER REFERENCES review_images(id) ON DELETE SET NULL`,
 		`CREATE TABLE IF NOT EXISTS sessions (
 			id SERIAL PRIMARY KEY,
 			token_hash VARCHAR(64) NOT NULL UNIQUE,
@@ -123,6 +126,12 @@ func Migrate() error {
 			PRIMARY KEY (cafe_id, tag_id)
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_cafe_tags_tag_id ON cafe_tags(tag_id)`,
+		`CREATE TABLE IF NOT EXISTS review_image_tags (
+			image_id INTEGER NOT NULL REFERENCES review_images(id) ON DELETE CASCADE,
+			tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+			PRIMARY KEY (image_id, tag_id)
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_review_image_tags_tag_id ON review_image_tags(tag_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_reviews_cafe_id ON reviews(cafe_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_review_images_review_id ON review_images(review_id)`,
 	}

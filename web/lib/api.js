@@ -109,6 +109,13 @@ export function setCafeBackground(id, file) {
   return request(`/cafes/${id}/background`, { method: 'PUT', form })
 }
 export const deleteCafeBackground = (id) => request(`/cafes/${id}/background`, { method: 'DELETE' })
+export const setCafeBackgroundImage = (id, imageId) =>
+  request(`/cafes/${id}/background/review-image`, { method: 'PUT', body: { image_id: imageId } })
+export const clearCafeBackgroundImage = (id) => request(`/cafes/${id}/background/review-image`, { method: 'DELETE' })
+
+// Review image tags
+export const setReviewImageTags = (imageId, tagIds) =>
+  request(`/review-images/${imageId}/tags`, { method: 'PUT', body: { tag_ids: tagIds } })
 
 // Reviews
 export const createReview = (cafeId, review) => request(`/cafes/${cafeId}/reviews`, { method: 'POST', body: review })
