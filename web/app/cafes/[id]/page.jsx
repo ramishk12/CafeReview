@@ -39,7 +39,7 @@ export default async function CafePage({ params }) {
           <ArrowLeft size={16} aria-hidden="true" /> All cafes
         </Link>
         <div className="flex items-center gap-2">
-          <AddToListButton cafeId={cafe.id} />
+          <AddToListButton type="cafe" id={cafe.id} />
           <CafeAdminActions cafeId={cafe.id} cafeName={cafe.name} closed={cafe.closed} />
         </div>
       </div>

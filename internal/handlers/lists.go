@@ -68,14 +68,21 @@ func validateListName(name string) (string, string) {
 func ListMyLists(c *gin.Context) {
 	userID := auth.CurrentUserID(c)
 
-	cafeID := 0
-	if raw := strings.TrimSpace(c.Query("cafe")); raw != "" {
+	// At most one of cafe/user/review may be set; the matching Contains flag is filled in.
+	itemType := ""
+	itemID := 0
+	for _, candidate := range []string{"cafe", "user", "review"} {
+		raw := strings.TrimSpace(c.Query(candidate))
+		if raw == "" {
+			continue
+		}
 		id, err := strconv.Atoi(raw)
 		if err != nil || id <= 0 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "cafe must be a valid ID"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": candidate + " must be a valid ID"})
 			return
 		}
-		cafeID = id
+		itemType, itemID = candidate, id
+		break
 	}
 
 	rows, err := database.DB.Query(`
@@ -105,9 +112,15 @@ func ListMyLists(c *gin.Context) {
 		return
 	}
 
-	if cafeID > 0 {
+	if itemID > 0 {
+		query := map[string]string{
+			"cafe":   `SELECT list_id FROM list_cafes WHERE cafe_id = $1`,
+			"user":   `SELECT list_id FROM list_users WHERE user_id = $1`,
+			"review": `SELECT list_id FROM list_reviews WHERE review_id = $1`,
+		}[itemType]
+
 		contained := map[int]bool{}
-		membership, err := database.DB.Query(`SELECT list_id FROM list_cafes WHERE cafe_id = $1`, cafeID)
+		membership, err := database.DB.Query(query, itemID)
 		if err != nil {
 			apierror.Internal(c, err)
 			return
@@ -126,7 +139,14 @@ func ListMyLists(c *gin.Context) {
 			return
 		}
 		for i := range lists {
-			lists[i].ContainsCafe = contained[lists[i].ID]
+			switch itemType {
+			case "cafe":
+				lists[i].ContainsCafe = contained[lists[i].ID]
+			case "user":
+				lists[i].ContainsUser = contained[lists[i].ID]
+			case "review":
+				lists[i].ContainsReview = contained[lists[i].ID]
+			}
 		}
 	}
 
@@ -192,7 +212,17 @@ func GetList(c *gin.Context) {
 		apierror.Internal(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, models.ListDetail{List: list, Cafes: cafes})
+	users, err := usersInList(listID)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	reviews, err := reviewsInList(listID)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, models.ListDetail{List: list, Cafes: cafes, Users: users, Reviews: reviews})
 }
 
 // UpdateList renames a list.
@@ -365,4 +395,233 @@ func cafesInList(listID int) ([]models.Cafe, error) {
 		}
 	}
 	return cafes, nil
+}
+
+const (
+	maxUsersPerList   = 500
+	maxReviewsPerList = 500
+)
+
+// usersInList returns the users in a list.
+func usersInList(listID int) ([]models.UserSummary, error) {
+	rows, err := database.DB.Query(`
+		SELECT u.id, u.display_name
+		FROM list_users lu
+		JOIN users u ON u.id = lu.user_id
+		WHERE lu.list_id = $1
+		ORDER BY lu.added_at DESC`, listID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	users := []models.UserSummary{}
+	for rows.Next() {
+		var u models.UserSummary
+		if err := rows.Scan(&u.ID, &u.DisplayName); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
+// reviewsInList returns the reviews in a list, with their cafe name, images, and tags.
+func reviewsInList(listID int) ([]models.Review, error) {
+	rows, err := database.DB.Query(`
+		SELECT r.id, r.cafe_id, c.name, r.user_id, u.display_name, r.rating, r.body, r.visited_on, r.created_at, r.updated_at
+		FROM list_reviews lr
+		JOIN reviews r ON r.id = lr.review_id
+		JOIN users u ON u.id = r.user_id
+		JOIN cafes c ON c.id = r.cafe_id
+		WHERE lr.list_id = $1
+		ORDER BY lr.added_at DESC`, listID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	reviews := []models.Review{}
+	ids := []int{}
+	for rows.Next() {
+		r, err := scanReviewWithCafe(rows)
+		if err != nil {
+			return nil, err
+		}
+		reviews = append(reviews, r)
+		ids = append(ids, r.ID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	images, err := loadImagesForReviews(ids)
+	if err != nil {
+		return nil, err
+	}
+	tags, err := loadTagsForReviews(ids)
+	if err != nil {
+		return nil, err
+	}
+	for i := range reviews {
+		reviews[i].Images = images[reviews[i].ID]
+		if reviews[i].Images == nil {
+			reviews[i].Images = []models.ReviewImage{}
+		}
+		reviews[i].Tags = tags[reviews[i].ID]
+		if reviews[i].Tags == nil {
+			reviews[i].Tags = []models.Tag{}
+		}
+	}
+	return reviews, nil
+}
+
+// AddUserToList adds a reviewer to a list.
+func AddUserToList(c *gin.Context) {
+	listID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	if !requireListOwner(c, listID) {
+		return
+	}
+
+	var req struct {
+		UserID int `json:"user_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.UserID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "A valid user_id is required"})
+		return
+	}
+
+	var count int
+	if err := database.DB.QueryRow(`SELECT COUNT(*) FROM list_users WHERE list_id = $1`, listID).Scan(&count); err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	if count >= maxUsersPerList {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("A list can hold at most %d reviewers", maxUsersPerList)})
+		return
+	}
+
+	_, err := database.DB.Exec(`INSERT INTO list_users (list_id, user_id) VALUES ($1, $2)`, listID, req.UserID)
+	if database.IsForeignKeyViolation(err) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+	if database.IsUniqueViolation(err) {
+		c.JSON(http.StatusConflict, gin.H{"error": "This reviewer is already in the list"})
+		return
+	}
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// RemoveUserFromList removes a reviewer from a list.
+func RemoveUserFromList(c *gin.Context) {
+	listID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	userID, ok := parseID(c, "userId")
+	if !ok {
+		return
+	}
+	if !requireListOwner(c, listID) {
+		return
+	}
+
+	res, err := database.DB.Exec(`DELETE FROM list_users WHERE list_id = $1 AND user_id = $2`, listID, userID)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	if affected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "This reviewer is not in the list"})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// AddReviewToList adds a review to a list.
+func AddReviewToList(c *gin.Context) {
+	listID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	if !requireListOwner(c, listID) {
+		return
+	}
+
+	var req struct {
+		ReviewID int `json:"review_id"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || req.ReviewID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "A valid review_id is required"})
+		return
+	}
+
+	var count int
+	if err := database.DB.QueryRow(`SELECT COUNT(*) FROM list_reviews WHERE list_id = $1`, listID).Scan(&count); err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	if count >= maxReviewsPerList {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("A list can hold at most %d reviews", maxReviewsPerList)})
+		return
+	}
+
+	_, err := database.DB.Exec(`INSERT INTO list_reviews (list_id, review_id) VALUES ($1, $2)`, listID, req.ReviewID)
+	if database.IsForeignKeyViolation(err) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Review not found"})
+		return
+	}
+	if database.IsUniqueViolation(err) {
+		c.JSON(http.StatusConflict, gin.H{"error": "This review is already in the list"})
+		return
+	}
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// RemoveReviewFromList removes a review from a list.
+func RemoveReviewFromList(c *gin.Context) {
+	listID, ok := parseID(c, "id")
+	if !ok {
+		return
+	}
+	reviewID, ok := parseID(c, "reviewId")
+	if !ok {
+		return
+	}
+	if !requireListOwner(c, listID) {
+		return
+	}
+
+	res, err := database.DB.Exec(`DELETE FROM list_reviews WHERE list_id = $1 AND review_id = $2`, listID, reviewID)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	if affected == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "This review is not in the list"})
+		return
+	}
+	c.Status(http.StatusNoContent)
 }
