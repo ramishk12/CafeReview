@@ -63,6 +63,13 @@ All endpoints are under `/api`. Errors return `{"error": "..."}`. Signing in set
 | PUT | `/cafes/:id/background/review-image` | Admin. Body: `{"image_id": id}`, picks a review photo |
 | DELETE | `/cafes/:id/background/review-image` | Admin |
 | PUT | `/review-images/:id/tags` | Owner or admin. Body: `{"tag_ids": [...]}` |
+| GET | `/me/lists` | Signed-in. Query: `cafe=<id>` adds `contains_cafe` |
+| POST | `/me/lists` | Signed-in. Body: `{"name": "..."}` |
+| GET | `/lists/:id` | Owner. The list with its cafes |
+| PUT | `/lists/:id` | Owner. Rename |
+| DELETE | `/lists/:id` | Owner |
+| POST | `/lists/:id/cafes` | Owner. Body: `{"cafe_id": id}` |
+| DELETE | `/lists/:id/cafes/:cafeId` | Owner |
 | GET | `/cafes/:id/reviews` | Query: `sort` (`newest`, `highest`, `lowest`; default `newest`), `limit` (1-100), `offset` |
 | POST | `/cafes/:id/reviews` | One review per user per cafe per day. Body includes `visited_on` (YYYY-MM-DD, defaults to today) and optional `tag_ids` |
 | PUT | `/reviews/:id` | Owner only |

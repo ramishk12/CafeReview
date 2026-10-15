@@ -1,6 +1,7 @@
 import { ArrowLeft, MapPin } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import AddToListButton from '@/components/AddToListButton'
 import CafeAdminActions from '@/components/CafeAdminActions'
 import CafeBackgroundEditor from '@/components/CafeBackgroundEditor'
 import CafeTagEditor from '@/components/CafeTagEditor'
@@ -37,7 +38,10 @@ export default async function CafePage({ params }) {
         >
           <ArrowLeft size={16} aria-hidden="true" /> All cafes
         </Link>
-        <CafeAdminActions cafeId={cafe.id} cafeName={cafe.name} closed={cafe.closed} />
+        <div className="flex items-center gap-2">
+          <AddToListButton cafeId={cafe.id} />
+          <CafeAdminActions cafeId={cafe.id} cafeName={cafe.name} closed={cafe.closed} />
+        </div>
       </div>
 
       <header

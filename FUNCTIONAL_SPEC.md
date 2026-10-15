@@ -97,7 +97,19 @@ current behaviour.
   reviews. Filters run in the browser and are kept in the URL so the view is
   shareable.
 
-## 4. Images
+## 4. Lists
+
+- Signed-in users create named lists (for example Visited, Want to visit,
+  Favourites) and add cafes to them. A cafe can be in several lists.
+- The "create list" screen suggests example names; nothing is created
+  automatically.
+- Lists are private. Public lists are designed for (`lists.is_public`) but not
+  built yet.
+- Limits: 50 lists per user and 500 cafes per list.
+- The schema also has `list_reviews` and `list_users` for future lists of reviews
+  and reviewers (issue #78).
+
+## 5. Images
 
 - **Accepted formats:** JPEG, PNG, and WebP, up to 5 MB per file. The type is
   confirmed by content sniffing, not the client header.
@@ -108,7 +120,7 @@ current behaviour.
 - **Storage:** files are stored under `uploads/` with random names; only paths
   are kept in the database. They are served at `/uploads/...`.
 
-## 5. Security
+## 6. Security
 
 - bcrypt password hashing; password hashes never leave the server.
 - Server-side sessions (see section 1) and CSRF protection on writes.
@@ -123,7 +135,7 @@ current behaviour.
 - Secrets and credentials come from the environment; the app refuses to start
   without a database password.
 
-## 6. Email
+## 7. Email
 
 - Transactional email is sent through a single `Sender` interface. Configuring
   SMTP uses that provider; leaving `SMTP_HOST` empty writes emails to the server
@@ -131,12 +143,12 @@ current behaviour.
 - Local development uses Mailpit (SMTP on 1025, web UI on 8025).
 - Currently only account verification emails are sent.
 
-## 7. Command-line tools
+## 8. Command-line tools
 
 - `createadmin`: creates an admin user from `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and
   `ADMIN_NAME`, or promotes an existing user. The account is created verified.
 
-## 8. API
+## 9. API
 
 All endpoints are under `/api`. Errors return `{"error": "..."}`. Writes require
 the session cookie and the `X-CSRF-Token` header; admin routes require an admin
@@ -164,6 +176,13 @@ account.
 | PUT | `/cafes/:id/background/review-image` | Admin. Body: `{"image_id": id}` |
 | DELETE | `/cafes/:id/background/review-image` | Admin |
 | PUT | `/review-images/:id/tags` | Owner or admin. Body: `{"tag_ids": [...]}` |
+| GET | `/me/lists` | Signed-in. Query: `cafe=<id>` adds `contains_cafe` |
+| POST | `/me/lists` | Signed-in. Body: `{"name": "..."}` |
+| GET | `/lists/:id` | Owner. The list with its cafes |
+| PUT | `/lists/:id` | Owner. Rename |
+| DELETE | `/lists/:id` | Owner |
+| POST | `/lists/:id/cafes` | Owner. Body: `{"cafe_id": id}` |
+| DELETE | `/lists/:id/cafes/:cafeId` | Owner |
 | GET | `/cafes/:id/reviews` | `sort`, `limit`, `offset` |
 | POST | `/cafes/:id/reviews` | One per user per cafe per day. Body includes `visited_on` and optional `tag_ids` |
 | PUT | `/reviews/:id` | Owner only. Body includes rating, body, `visited_on`, and `tag_ids` |
@@ -171,7 +190,7 @@ account.
 | POST | `/reviews/:id/images` | Owner only |
 | DELETE | `/reviews/:id/images/:imageId` | Owner only |
 
-## 9. Web pages
+## 10. Web pages
 
 - `/` browse cafes (search, tag filters, sort, and pages; state is in the URL).
 - `/cafes/:id` cafe detail, reviews (with sorting and filtering), photos, and the review form.
@@ -179,7 +198,7 @@ account.
 - `/cafes/:id/edit` admin: edit an existing cafe.
 - `/login`, `/register`, `/verify` account pages.
 
-## 10. Data model
+## 11. Data model
 
 - `users`: id, email (unique), display_name, password_hash, role, created_at,
   email_verified_at.
@@ -197,10 +216,12 @@ account.
 - `cafe_tags`: cafe_id, tag_id.
 - `review_image_tags`: image_id, tag_id.
 - `review_tags`: review_id, tag_id.
+- `lists`: id, user_id, name, is_public, created_at.
+- `list_cafes`, `list_reviews`, `list_users`: list_id + the item id, added_at.
 
-## 11. Not built yet
+## 12. Not built yet
 
-Tracked as issues:
+Tracked as issues: city search and maps (#16), social sign-in (#33), account settings (#45), public profiles (#44), admin moderation (#35), reporting reviews (#40), helpful votes (#41), review edit history (#42), review drafts (#43), lists of reviewers and reviews (#78), following cafes and email (#46), similar-cafe warning (#36), loading and empty states (#39), and the launch work: image storage (#9), Docker (#48), enforcing the CSP (#62), structured logging (#49), and accessibility (#50).
 closing and archiving cafes, user lists, following cafes, social sign-in,
 account settings, public profiles, review reports and moderation, helpful votes,
 review edit history, review drafts, maps integration, Dockerfiles, structured
