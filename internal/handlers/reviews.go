@@ -33,9 +33,11 @@ const reviewSelect = `
 // reviewSortClauses maps the accepted ?sort= values for a cafe's reviews to ORDER BY clauses.
 var reviewSortClauses = map[string]string{
 	"newest":  "r.created_at DESC, r.id DESC",
+	"visit":   "r.visited_on DESC, r.id DESC",
 	"highest": "r.rating DESC, r.created_at DESC, r.id DESC",
 	"lowest":  "r.rating ASC, r.created_at DESC, r.id DESC",
-	"visit":   "r.visited_on DESC, r.id DESC",
+	// helpful orders by vote count, then newest first as a tie-breaker.
+	"helpful": "(SELECT COUNT(*) FROM review_votes rv WHERE rv.review_id = r.id) DESC, r.created_at DESC, r.id DESC",
 }
 
 type reviewRequest struct {
@@ -343,8 +345,10 @@ func requireReviewOwner(c *gin.Context, reviewID int) bool {
 	return true
 }
 
-// ListReviews supports ?sort= (newest, highest, lowest) and optional ?limit= and ?offset=.
-// Without limit, every review for the cafe is returned.
+// ListReviews returns a cafe's reviews. It supports ?sort= (newest, visit,
+// helpful, highest, lowest), optional ?rating= (minimum stars), ?photos=1,
+// ?tags= (comma-separated review tag IDs), ?user_id= (reviewer), and optional
+// ?limit= and ?offset=. Without limit, every matching review is returned.
 func ListReviews(c *gin.Context) {
 	cafeID, ok := parseID(c, "id")
 	if !ok {
@@ -359,14 +363,56 @@ func ListReviews(c *gin.Context) {
 		return
 	}
 
-	total, err := countRows(`SELECT COUNT(*) FROM reviews WHERE cafe_id = $1`, cafeID)
+	conditions := []string{"r.cafe_id = $1"}
+	args := []any{cafeID}
+
+	if raw := strings.TrimSpace(c.Query("rating")); raw != "" {
+		rating, err := strconv.Atoi(raw)
+		if err != nil || rating < 1 || rating > 5 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "rating must be between 1 and 5"})
+			return
+		}
+		args = append(args, rating)
+		conditions = append(conditions, fmt.Sprintf("r.rating >= $%d", len(args)))
+	}
+	if strings.TrimSpace(c.Query("photos")) == "1" {
+		conditions = append(conditions, "EXISTS (SELECT 1 FROM review_images ri WHERE ri.review_id = r.id)")
+	}
+	tagIDs, ok := parseTagIDs(c)
+	if !ok {
+		return
+	}
+	if len(tagIDs) > 0 {
+		placeholders := make([]string, len(tagIDs))
+		for i, id := range tagIDs {
+			args = append(args, id)
+			placeholders[i] = fmt.Sprintf("$%d", len(args))
+		}
+		// A review matches when it carries any of the requested tags.
+		conditions = append(conditions, fmt.Sprintf(
+			"EXISTS (SELECT 1 FROM review_tags rt WHERE rt.review_id = r.id AND rt.tag_id IN (%s))",
+			strings.Join(placeholders, ", ")))
+	}
+	if raw := strings.TrimSpace(c.Query("user_id")); raw != "" {
+		userID, err := strconv.Atoi(raw)
+		if err != nil || userID <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "user_id must be a valid ID"})
+			return
+		}
+		args = append(args, userID)
+		conditions = append(conditions, fmt.Sprintf("r.user_id = $%d", len(args)))
+	}
+
+	where := " WHERE " + strings.Join(conditions, " AND ")
+
+	total, err := countRows(`SELECT COUNT(*) FROM reviews r`+where, args...)
 	if err != nil {
 		apierror.Internal(c, err)
 		return
 	}
 
-	query, args := appendPaging(reviewSelect+` WHERE r.cafe_id = $1 ORDER BY `+orderBy, []any{cafeID}, limit, offset, paged)
-	rows, err := database.DB.Query(query, args...)
+	query, queryArgs := appendPaging(reviewSelect+where+` ORDER BY `+orderBy, args, limit, offset, paged)
+	rows, err := database.DB.Query(query, queryArgs...)
 	if err != nil {
 		apierror.Internal(c, err)
 		return

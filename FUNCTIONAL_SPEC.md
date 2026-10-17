@@ -88,9 +88,9 @@ current behaviour.
   Editing can change the rating, text, and visit date. Deleting a review also
   deletes its photo files.
 - **Listing:** reviews for a cafe are listed with sorting by newest, latest visit,
-  highest rated, or lowest rated, and paging.
-- **Photos:** each review has its own photos, shown on the review and in a
-  per-cafe photo gallery.
+  most helpful, highest rated, or lowest rated, and paging (10 per page).
+- **Photos:** each review has its own photos, shown on the review and in a photo
+  gallery above the review list.
 - **Closed cafes:** no new reviews can be added, and existing reviews can no
   longer be edited. Existing reviews can still be deleted by their owner.
 - **Review tags:** a review can be tagged by its author with admin-curated
@@ -104,8 +104,9 @@ current behaviour.
   ("Edited · view history"). Images are not versioned. Deleting a review removes
   its history.
 - **Filtering:** the review list on a cafe page can be filtered by minimum
-  rating, reviews with photos, review tags, and the signed-in user's own
-  reviews. Filters run in the browser and are kept in the URL so the view is
+  rating, reviews with photos, review tags, and a reviewer. Sorting and filtering
+  run on the server, so only one page is loaded, and the controls are kept in the
+  URL (`sort`, `page`, `rating`, `photos`, `tags`, `user_id`) so the view is
   shareable.
 
 ## 4. Lists
@@ -202,7 +203,7 @@ account.
 | DELETE | `/lists/:id/users/:userId` | Owner |
 | POST | `/lists/:id/reviews` | Owner. Body: `{"review_id": id}` |
 | DELETE | `/lists/:id/reviews/:reviewId` | Owner |
-| GET | `/cafes/:id/reviews` | `sort`, `limit`, `offset` |
+| GET | `/cafes/:id/reviews` | `sort` (`newest`, `visit`, `helpful`, `highest`, `lowest`; default `newest`), `rating` (minimum stars), `photos=1`, `tags` (comma-separated IDs), `user_id` (reviewer), `limit`, `offset` |
 | POST | `/cafes/:id/reviews` | One per user per cafe per day. Body includes `visited_on` and optional `tag_ids` |
 | PUT | `/reviews/:id` | Owner only. Body includes rating, body, `visited_on`, and `tag_ids`. The previous version is saved |
 | GET | `/reviews/:id/revisions` | Author or admin. The review's earlier versions |

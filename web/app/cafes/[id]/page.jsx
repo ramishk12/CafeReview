@@ -10,6 +10,11 @@ import Stars from '@/components/Stars'
 import { getCafe, listReviews } from '@/lib/serverApi'
 import { cafeGradient, ratingLabel } from '@/lib/cafeTheme'
 
+// REVIEW_SORTS must match reviewSortClauses in internal/handlers/reviews.go.
+const REVIEW_SORTS = ['newest', 'visit', 'helpful', 'highest', 'lowest']
+const REVIEW_RATINGS = ['1', '2', '3', '4', '5']
+const REVIEW_PAGE_SIZE = 10
+
 export async function generateMetadata({ params }) {
   const { id } = await params
   const cafe = await getCafe(id).catch(() => null)
@@ -20,12 +25,32 @@ export async function generateMetadata({ params }) {
   }
 }
 
-export default async function CafePage({ params }) {
+export default async function CafePage({ params, searchParams }) {
   const { id } = await params
   if (!/^\d+$/.test(id)) notFound()
 
-  const [cafe, reviews] = await Promise.all([getCafe(id), listReviews(id)])
+  const cafe = await getCafe(id)
   if (!cafe) notFound()
+
+  // The review list is server-sorted, filtered, and paged; the controls write
+  // these values to the URL so the view stays shareable.
+  const sp = await searchParams
+  const sort = REVIEW_SORTS.includes(sp.sort) ? sp.sort : 'newest'
+  const page = Math.max(1, Number(sp.page) || 1)
+  const rating = REVIEW_RATINGS.includes(String(sp.rating)) ? String(sp.rating) : ''
+  const photos = sp.photos === '1'
+  const tags = typeof sp.tags === 'string' ? sp.tags : ''
+  const userId = /^\d+$/.test(String(sp.user_id ?? '')) ? String(sp.user_id) : ''
+
+  const { reviews, total } = await listReviews(id, {
+    sort,
+    rating,
+    photos,
+    tags,
+    userId,
+    page,
+    pageSize: REVIEW_PAGE_SIZE,
+  })
 
   const hasReviews = cafe.review_count > 0
 
@@ -101,7 +126,7 @@ export default async function CafePage({ params }) {
 
       <CafeTagEditor cafeId={cafe.id} initialTagIds={(cafe.tags ?? []).map((t) => t.id)} />
 
-      <ReviewSection cafe={cafe} reviews={reviews} />
+      <ReviewSection cafe={cafe} reviews={reviews} total={total} page={page} pageSize={REVIEW_PAGE_SIZE} />
     </section>
   )
 }
