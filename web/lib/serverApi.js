@@ -39,4 +39,24 @@ export async function listUserReviews(id, { page = 1, pageSize = 20 } = {}) {
   return { reviews, total }
 }
 export const getCafe = (id) => get(`/cafes/${id}`)
-export const listReviews = (cafeId) => get(`/cafes/${cafeId}/reviews`)
+
+// listReviews fetches one page of a cafe's reviews and the total count from
+// X-Total-Count. sort and the filters map to the query parameters of
+// GET /cafes/:id/reviews. Sorting and filtering happen on the server so the
+// page does not have to load every review.
+export async function listReviews(cafeId, { sort, rating, photos, tags, userId, page = 1, pageSize = 10 } = {}) {
+  const params = new URLSearchParams()
+  if (sort) params.set('sort', sort)
+  if (rating) params.set('rating', rating)
+  if (photos) params.set('photos', '1')
+  if (tags) params.set('tags', tags)
+  if (userId) params.set('user_id', userId)
+  params.set('limit', pageSize)
+  params.set('offset', (page - 1) * pageSize)
+
+  const res = await fetch(`${BACKEND_URL}/api/cafes/${cafeId}/reviews?${params.toString()}`, { cache: 'no-store' })
+  if (!res.ok) throw new Error(`API /cafes/${cafeId}/reviews failed with status ${res.status}`)
+  const total = Number(res.headers.get('X-Total-Count') || 0)
+  const reviews = await res.json()
+  return { reviews, total }
+}

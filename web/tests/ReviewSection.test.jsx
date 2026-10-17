@@ -1,13 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ReviewSection, { reviewPhotos } from '@/components/ReviewSection'
+import { listMyReviewVotes, listTags } from '@/lib/api'
 
 let authState = { user: null }
 let params = new URLSearchParams()
-const replace = vi.fn()
+const push = vi.fn()
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: vi.fn(), replace }),
+  useRouter: () => ({ refresh: vi.fn(), push }),
   usePathname: () => '/cafes/1',
   useSearchParams: () => params,
 }))
@@ -19,6 +20,11 @@ vi.mock('@/context/AuthContext', () => ({
 }))
 vi.mock('@/context/ToastContext', () => ({
   useToast: () => ({ show: vi.fn() }),
+}))
+vi.mock('@/lib/api', async (importOriginal) => ({
+  ...(await importOriginal()),
+  listTags: vi.fn(),
+  listMyReviewVotes: vi.fn(),
 }))
 
 const cafe = { id: 1, name: 'Bean There' }
@@ -48,61 +54,67 @@ describe('ReviewSection', () => {
   beforeEach(() => {
     authState = { user: null }
     params = new URLSearchParams()
-    replace.mockReset()
+    push.mockReset()
+    listTags.mockResolvedValue([{ id: 3, name: 'Limited edition', scope: 'review' }])
+    listMyReviewVotes.mockResolvedValue([])
   })
 
-  it('filters by minimum rating', () => {
-    params = new URLSearchParams('rating=4')
-    render(<ReviewSection cafe={cafe} reviews={reviews} />)
-    expect(screen.getByText('Excellent.')).toBeInTheDocument()
-    expect(screen.queryByText('Too cold.')).not.toBeInTheDocument()
+  // The list is sorted, filtered, and paged on the server, so the component
+  // renders the reviews it is given and the controls only update the URL.
+  it('renders the reviews it is given, in order', () => {
+    render(<ReviewSection cafe={cafe} reviews={reviews} total={2} />)
+    const bodies = screen.getAllByText(/Excellent\.|Too cold\./).map((el) => el.textContent)
+    expect(bodies).toEqual(['Excellent.', 'Too cold.'])
   })
 
-  it('filters to reviews with photos', () => {
-    params = new URLSearchParams('photos=1')
-    render(<ReviewSection cafe={cafe} reviews={reviews} />)
-    expect(screen.getByText('Excellent.')).toBeInTheDocument()
-    expect(screen.queryByText('Too cold.')).not.toBeInTheDocument()
+  it('navigates to the chosen sort', () => {
+    render(<ReviewSection cafe={cafe} reviews={reviews} total={2} />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Sort' }), { target: { value: 'helpful' } })
+    expect(push).toHaveBeenCalledWith('/cafes/1?sort=helpful')
   })
 
-  it('filters to the signed-in user\'s reviews', () => {
+  it('navigates when the rating filter changes', () => {
+    render(<ReviewSection cafe={cafe} reviews={reviews} total={2} />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Rating' }), { target: { value: '4' } })
+    expect(push).toHaveBeenCalledWith('/cafes/1?rating=4')
+  })
+
+  it('toggles the with-photos filter', () => {
+    render(<ReviewSection cafe={cafe} reviews={reviews} total={2} />)
+    fireEvent.click(screen.getByRole('button', { name: 'With photos' }))
+    expect(push).toHaveBeenCalledWith('/cafes/1?photos=1')
+  })
+
+  it('filters to the signed-in user\'s own reviews', () => {
     authState = { user: { id: 7, display_name: 'Demo User', role: 'user' } }
-    params = new URLSearchParams('mine=1')
-    render(<ReviewSection cafe={cafe} reviews={reviews} />)
-    expect(screen.getByText('Excellent.')).toBeInTheDocument()
-    expect(screen.queryByText('Too cold.')).not.toBeInTheDocument()
+    render(<ReviewSection cafe={cafe} reviews={reviews} total={2} />)
+    fireEvent.click(screen.getByRole('button', { name: 'My reviews' }))
+    expect(push).toHaveBeenCalledWith('/cafes/1?user_id=7')
   })
 
-  it('filters by review tag', () => {
-    params = new URLSearchParams('tags=1')
-    render(<ReviewSection cafe={cafe} reviews={reviews} />)
-    expect(screen.getByText('Excellent.')).toBeInTheDocument()
-    expect(screen.queryByText('Too cold.')).not.toBeInTheDocument()
+  it('toggles a review tag filter', async () => {
+    render(<ReviewSection cafe={cafe} reviews={reviews} total={2} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Limited edition' }))
+    expect(push).toHaveBeenCalledWith('/cafes/1?tags=3')
   })
 
-  it('shows a filter empty state when nothing matches', () => {
-    params = new URLSearchParams('rating=5')
-    render(<ReviewSection cafe={cafe} reviews={[reviews[1]]} />)
+  it('shows a filter empty state and a way to clear filters', () => {
+    params = new URLSearchParams('rating=4')
+    render(<ReviewSection cafe={cafe} reviews={[]} total={0} />)
     expect(screen.getByText('No reviews match your filters.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument()
+  })
+
+  it('shows a pager and navigates between pages', () => {
+    render(<ReviewSection cafe={cafe} reviews={reviews} total={25} page={1} pageSize={10} />)
+    fireEvent.click(screen.getByRole('button', { name: '2' }))
+    expect(push).toHaveBeenCalledWith('/cafes/1?page=2')
   })
 
   it('asks signed-out visitors to log in instead of showing a form', () => {
     render(<ReviewSection cafe={cafe} reviews={reviews} />)
     expect(screen.getByRole('link', { name: 'Log in to review' })).toHaveAttribute('href', '/login?from=/cafes/1')
     expect(screen.queryByRole('button', { name: 'Post review' })).not.toBeInTheDocument()
-  })
-
-  it('lists reviews newest first by default', () => {
-    render(<ReviewSection cafe={cafe} reviews={reviews} />)
-    const bodies = screen.getAllByText(/Excellent\.|Too cold\./).map((el) => el.textContent)
-    expect(bodies).toEqual(['Too cold.', 'Excellent.'])
-  })
-
-  it('re-sorts by highest rated', () => {
-    render(<ReviewSection cafe={cafe} reviews={reviews} />)
-    fireEvent.change(screen.getByRole('combobox', { name: 'Sort' }), { target: { value: 'highest' } })
-    const bodies = screen.getAllByText(/Excellent\.|Too cold\./).map((el) => el.textContent)
-    expect(bodies).toEqual(['Excellent.', 'Too cold.'])
   })
 
   it('shows a form to add a visit for a signed-in user', () => {

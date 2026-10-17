@@ -39,7 +39,7 @@ func TestListReviews(t *testing.T) {
 			name:   "Lists reviews newest first with the total",
 			target: "/api/cafes/1/reviews",
 			setupMock: func(m sqlmock.Sqlmock) {
-				m.ExpectQuery(`SELECT COUNT\(\*\) FROM reviews WHERE cafe_id = \$1`).WithArgs(1).WillReturnRows(countRow(2))
+				m.ExpectQuery(`SELECT COUNT\(\*\) FROM reviews r WHERE r\.cafe_id = \$1`).WithArgs(1).WillReturnRows(countRow(2))
 				m.ExpectQuery(`ORDER BY r\.created_at DESC, r\.id DESC`).WithArgs(1).WillReturnRows(reviewListRows(now))
 				m.ExpectQuery(`FROM review_images`).WillReturnRows(sqlmock.NewRows(imageCols))
 				m.ExpectQuery(`FROM review_tags`).WillReturnRows(sqlmock.NewRows([]string{"review_id", "id", "name", "category", "scope"}))
@@ -87,6 +87,87 @@ func TestListReviews(t *testing.T) {
 			expectedStatus: http.StatusOK,
 			expectedTotal:  "2",
 			expectedCount:  1,
+		},
+		{
+			name:   "Sorts by most helpful",
+			target: "/api/cafes/1/reviews?sort=helpful",
+			setupMock: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery(`COUNT`).WithArgs(1).WillReturnRows(countRow(2))
+				m.ExpectQuery(`ORDER BY \(SELECT COUNT\(\*\) FROM review_votes rv WHERE rv\.review_id = r\.id\) DESC`).WithArgs(1).WillReturnRows(reviewListRows(now))
+				m.ExpectQuery(`FROM review_images`).WillReturnRows(sqlmock.NewRows(imageCols))
+				m.ExpectQuery(`FROM review_tags`).WillReturnRows(sqlmock.NewRows([]string{"review_id", "id", "name", "category", "scope"}))
+			},
+			expectedStatus: http.StatusOK,
+			expectedTotal:  "2",
+			expectedCount:  2,
+		},
+		{
+			name:   "Filters by minimum rating",
+			target: "/api/cafes/1/reviews?rating=4",
+			setupMock: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery(`WHERE r\.cafe_id = \$1 AND r\.rating >= \$2`).WithArgs(1, 4).WillReturnRows(countRow(1))
+				m.ExpectQuery(`ORDER BY`).WithArgs(1, 4).
+					WillReturnRows(sqlmock.NewRows(reviewCols).AddRow(10, 1, 7, "Demo User", 5, "Excellent.", now, now, now, 0, 0))
+				m.ExpectQuery(`FROM review_images`).WillReturnRows(sqlmock.NewRows(imageCols))
+				m.ExpectQuery(`FROM review_tags`).WillReturnRows(sqlmock.NewRows([]string{"review_id", "id", "name", "category", "scope"}))
+			},
+			expectedStatus: http.StatusOK,
+			expectedTotal:  "1",
+			expectedCount:  1,
+		},
+		{
+			name:   "Filters to reviews with photos",
+			target: "/api/cafes/1/reviews?photos=1",
+			setupMock: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery(`AND EXISTS \(SELECT 1 FROM review_images ri WHERE ri\.review_id = r\.id\)`).WithArgs(1).WillReturnRows(countRow(1))
+				m.ExpectQuery(`ORDER BY`).WithArgs(1).
+					WillReturnRows(sqlmock.NewRows(reviewCols).AddRow(10, 1, 7, "Demo User", 5, "Excellent.", now, now, now, 0, 0))
+				m.ExpectQuery(`FROM review_images`).WillReturnRows(sqlmock.NewRows(imageCols))
+				m.ExpectQuery(`FROM review_tags`).WillReturnRows(sqlmock.NewRows([]string{"review_id", "id", "name", "category", "scope"}))
+			},
+			expectedStatus: http.StatusOK,
+			expectedTotal:  "1",
+			expectedCount:  1,
+		},
+		{
+			name:   "Filters by review tag",
+			target: "/api/cafes/1/reviews?tags=3",
+			setupMock: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery(`AND rt\.tag_id IN \(\$2\)`).WithArgs(1, 3).WillReturnRows(countRow(1))
+				m.ExpectQuery(`ORDER BY`).WithArgs(1, 3).
+					WillReturnRows(sqlmock.NewRows(reviewCols).AddRow(10, 1, 7, "Demo User", 5, "Excellent.", now, now, now, 0, 0))
+				m.ExpectQuery(`FROM review_images`).WillReturnRows(sqlmock.NewRows(imageCols))
+				m.ExpectQuery(`FROM review_tags`).WillReturnRows(sqlmock.NewRows([]string{"review_id", "id", "name", "category", "scope"}))
+			},
+			expectedStatus: http.StatusOK,
+			expectedTotal:  "1",
+			expectedCount:  1,
+		},
+		{
+			name:   "Filters by reviewer",
+			target: "/api/cafes/1/reviews?user_id=7",
+			setupMock: func(m sqlmock.Sqlmock) {
+				m.ExpectQuery(`AND r\.user_id = \$2`).WithArgs(1, 7).WillReturnRows(countRow(1))
+				m.ExpectQuery(`ORDER BY`).WithArgs(1, 7).
+					WillReturnRows(sqlmock.NewRows(reviewCols).AddRow(10, 1, 7, "Demo User", 5, "Excellent.", now, now, now, 0, 0))
+				m.ExpectQuery(`FROM review_images`).WillReturnRows(sqlmock.NewRows(imageCols))
+				m.ExpectQuery(`FROM review_tags`).WillReturnRows(sqlmock.NewRows([]string{"review_id", "id", "name", "category", "scope"}))
+			},
+			expectedStatus: http.StatusOK,
+			expectedTotal:  "1",
+			expectedCount:  1,
+		},
+		{
+			name:           "Rejects an out-of-range rating",
+			target:         "/api/cafes/1/reviews?rating=9",
+			setupMock:      func(sqlmock.Sqlmock) {},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "Rejects an invalid user_id",
+			target:         "/api/cafes/1/reviews?user_id=0",
+			setupMock:      func(sqlmock.Sqlmock) {},
+			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name:           "Rejects an unknown sort",
