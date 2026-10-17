@@ -8,8 +8,7 @@ import { closeCafe, deleteCafe, reopenCafe } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 
-// Admin-only controls on a cafe page: edit and delete. This is the place to add
-// later admin actions such as close/reopen or a background image.
+// Admin-only control bar on a cafe page: edit, close/reopen, and delete.
 export default function CafeAdminActions({ cafeId, cafeName, closed = false }) {
   const { isAdmin } = useAuth()
   const toast = useToast()
