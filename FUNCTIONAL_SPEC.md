@@ -248,7 +248,3 @@ account.
 ## 12. Not built yet
 
 Tracked as issues: city search and maps (#16), social sign-in (#33), account settings (#45), admin moderation (#35), reporting reviews (#40), review drafts (#43), following cafes and email (#46), similar-cafe warning (#36), loading and empty states (#39), and the launch work: image storage (#9), Docker (#48), enforcing the CSP (#62), structured logging (#49), and accessibility (#50).
-closing and archiving cafes, user lists, following cafes, social sign-in,
-account settings, public profiles, review reports and moderation, helpful votes,
-review edit history, review drafts, maps integration, Dockerfiles, structured
-logging, and the accessibility audit.
