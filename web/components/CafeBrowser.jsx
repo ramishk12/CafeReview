@@ -9,6 +9,7 @@ import CafeCard from './CafeCard'
 const SORTS = {
   rating: 'Top rated',
   reviews: 'Most reviewed',
+  newest: 'Newest',
   name: 'A–Z',
 }
 

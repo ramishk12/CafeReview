@@ -38,6 +38,18 @@ describe('CafeBrowser', () => {
     expect(push).toHaveBeenCalledWith('/?sort=name')
   })
 
+  it('offers every API sort mode, including Newest', () => {
+    render(<CafeBrowser cafes={cafes} />)
+    const options = screen.getAllByRole('option').map((o) => o.textContent)
+    expect(options).toEqual(['Top rated', 'Most reviewed', 'Newest', 'A–Z'])
+  })
+
+  it('sorts by Newest when selected', () => {
+    render(<CafeBrowser cafes={cafes} />)
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'newest' } })
+    expect(push).toHaveBeenCalledWith('/?sort=newest')
+  })
+
   it('updates the URL when a tag is toggled', () => {
     const tags = [{ id: 10, name: 'Quiet', category: 'vibe' }]
     render(<CafeBrowser cafes={cafes} tags={tags} />)
