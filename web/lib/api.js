@@ -157,3 +157,5 @@ export function uploadReviewImage(reviewId, file) {
   form.append('image', file)
   return request(`/reviews/${reviewId}/images`, { method: 'POST', form })
 }
+export const deleteReviewImage = (reviewId, imageId) =>
+  request(`/reviews/${reviewId}/images/${imageId}`, { method: 'DELETE' })

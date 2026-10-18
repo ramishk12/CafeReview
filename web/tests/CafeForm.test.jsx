@@ -53,6 +53,16 @@ describe('CafeForm', () => {
     expect(routerMock.push).toHaveBeenCalledWith('/cafes/3')
   })
 
+  it('offers a cancel link back to the cafe when editing', () => {
+    render(<CafeForm cafe={{ id: 3, name: 'Bean', address: '', description: '' }} />)
+    expect(screen.getByRole('link', { name: 'Cancel' })).toHaveAttribute('href', '/cafes/3')
+  })
+
+  it('offers a cancel link back to the cafe list when adding', () => {
+    render(<CafeForm />)
+    expect(screen.getByRole('link', { name: 'Cancel' })).toHaveAttribute('href', '/')
+  })
+
   it('warns about similar cafes while adding one', async () => {
     listSimilarCafes.mockResolvedValue([{ id: 9, name: 'Bean There', address: '12 Market St' }])
 
