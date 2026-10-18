@@ -23,6 +23,22 @@ jobs:
   test:
     name: Go vet, test, and vulnerability check
     runs-on: ubuntu-latest
+    services:
+      # The integration tests in internal/handlers run against a real database,
+      # so invalid SQL fails the build instead of only failing at runtime.
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cafe_review_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v7
 
@@ -35,6 +51,8 @@ jobs:
         run: go vet ./...
 
       - name: Test
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/cafe_review_test?sslmode=disable
         run: go test -race -count=1 ./...
 
       - name: Vulnerability check

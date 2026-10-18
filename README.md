@@ -109,7 +109,16 @@ Before running anywhere other than your machine:
 go test ./...
 go vet ./...
 
+# Backend integration tests (real PostgreSQL; skipped unless TEST_DATABASE_URL
+# is set; the database name must end in _test because the tables are truncated)
+docker compose up -d
+docker compose exec db createdb -U postgres cafe_review_test
+TEST_DATABASE_URL='postgres://postgres:<DB_PASSWORD>@localhost:5432/cafe_review_test?sslmode=disable' go test ./...
+
 # Frontend (Vitest + Testing Library, jsdom)
 cd web
 npm test
 ```
+
+The integration tests run in CI against a PostgreSQL service container, so a
+query that real PostgreSQL rejects fails the build.
