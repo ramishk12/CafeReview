@@ -101,12 +101,12 @@ export default function ListDetailClient() {
           <h2 className="mb-4 text-xl font-bold tracking-tight">Cafes</h2>
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
             {list.cafes.map((cafe) => (
-              <li key={cafe.id} className="relative">
+              <li key={cafe.id} className="grid gap-2">
                 <CafeCard cafe={cafe} />
                 <button
                   type="button"
                   onClick={() => run(() => removeCafeFromList(id, cafe.id))}
-                  className="btn btn-ghost absolute right-3 bottom-3 bg-white/90 px-3 py-1.5 text-xs dark:bg-slate-900/90"
+                  className="btn btn-ghost justify-self-start px-3 py-1.5 text-xs"
                 >
                   Remove
                 </button>

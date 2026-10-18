@@ -3,7 +3,7 @@
 import { Coffee, Search, SlidersHorizontal } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import CafeCard from './CafeCard'
 import EmptyState from './EmptyState'
@@ -27,6 +27,7 @@ export default function CafeBrowser({ cafes, tags = [], total = 0, page = 1, pag
   const currentTags = (searchParams.get('tags') || '').split(',').filter(Boolean)
   const hasFilters = Boolean((searchParams.get('q') || '').trim()) || currentTags.length > 0
   const [query, setQuery] = useState(searchParams.get('q') || '')
+  const searchRef = useRef(null)
 
   const buildHref = (updates) => {
     const next = new URLSearchParams(searchParams.toString())
@@ -38,10 +39,18 @@ export default function CafeBrowser({ cafes, tags = [], total = 0, page = 1, pag
     return qs ? `${pathname}?${qs}` : pathname
   }
 
-  // Debounced search: typing updates the URL, which resets to page 1.
+  // Keep the box in step with the URL (Back/Forward, a shared link) without
+  // clobbering what the user is typing.
+  useEffect(() => {
+    if (document.activeElement === searchRef.current) return
+    setQuery(searchParams.get('q') || '')
+  }, [searchParams])
+
+  // Debounced search: typing updates the URL, which resets to page 1. replace
+  // keeps Back from stepping through every keystroke.
   useEffect(() => {
     if (query === (searchParams.get('q') || '')) return
-    const timer = setTimeout(() => router.push(buildHref({ q: query, page: undefined })), 300)
+    const timer = setTimeout(() => router.replace(buildHref({ q: query, page: undefined })), 300)
     return () => clearTimeout(timer)
   }, [query]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -68,6 +77,7 @@ export default function CafeBrowser({ cafes, tags = [], total = 0, page = 1, pag
           <span className="sr-only">Search cafes</span>
           <Search size={17} aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-slate-400" />
           <input
+            ref={searchRef}
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}

@@ -1,15 +1,16 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import CafeBrowser from '@/components/CafeBrowser'
 
 const push = vi.fn()
+const replace = vi.fn()
 let params = new URLSearchParams()
 
 vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }) => <a href={href} {...rest}>{children}</a>,
 }))
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, replace }),
   usePathname: () => '/',
   useSearchParams: () => params,
 }))
@@ -25,6 +26,7 @@ describe('CafeBrowser', () => {
   beforeEach(() => {
     authState = { isAdmin: false }
     push.mockReset()
+    replace.mockReset()
     params = new URLSearchParams()
   })
 
@@ -63,6 +65,23 @@ describe('CafeBrowser', () => {
     render(<CafeBrowser cafes={cafes} total={50} page={1} pageSize={24} />)
     fireEvent.click(screen.getByRole('button', { name: '2' }))
     expect(push).toHaveBeenCalledWith('/?page=2')
+  })
+
+  it('debounces typing into the URL with replace', async () => {
+    render(<CafeBrowser cafes={cafes} />)
+
+    fireEvent.change(screen.getByPlaceholderText('Search by name or address'), { target: { value: 'bean' } })
+
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/?q=bean'))
+  })
+
+  it('reflects a search that changes in the URL', () => {
+    const { rerender } = render(<CafeBrowser cafes={cafes} />)
+
+    params = new URLSearchParams('q=tea')
+    rerender(<CafeBrowser cafes={cafes} />)
+
+    expect(screen.getByPlaceholderText('Search by name or address')).toHaveValue('tea')
   })
 
   it('shows an empty state when there are no cafes at all', () => {

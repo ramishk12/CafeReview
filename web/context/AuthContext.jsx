@@ -17,13 +17,19 @@ export function AuthProvider({ children }) {
     userRef.current = user
   }, [user])
 
-  // Restore the session from the HttpOnly cookie. A 401 here just means signed out.
+  // Restore the session from the HttpOnly cookie. A 401 here just means signed
+  // out; anything else (network, 5xx) looks identical, so say so.
   useEffect(() => {
     me()
       .then(setUser)
-      .catch(() => setUser(null))
+      .catch((err) => {
+        setUser(null)
+        if (err?.status !== 401) {
+          toast.show("We couldn't check your session. Refresh the page to try again.", 'error')
+        }
+      })
       .finally(() => setLoading(false))
-  }, [])
+  }, [toast])
 
   // A 401 on any other request means the session expired. Only notify if a user
   // was signed in, so the initial check does not raise a false alarm.

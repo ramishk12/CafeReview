@@ -215,7 +215,7 @@ const maxSimilarCafes = 5
 // and matches that are close in both fields sort first.
 func ListSimilarCafes(c *gin.Context) {
 	name := strings.TrimSpace(c.Query("name"))
-	if name == "" || len(name) > 255 {
+	if name == "" || utf8.RuneCountInString(name) > 255 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Name must be 1-255 characters"})
 		return
 	}
@@ -269,7 +269,8 @@ func validateCafeRequest(req *cafeRequest) string {
 	req.Name = strings.TrimSpace(req.Name)
 	req.Address = strings.TrimSpace(req.Address)
 	req.Description = strings.TrimSpace(req.Description)
-	if req.Name == "" || len(req.Name) > 255 {
+	// Count characters, not bytes, so the limit matches the form's maxLength.
+	if req.Name == "" || utf8.RuneCountInString(req.Name) > 255 {
 		return "Name must be 1-255 characters"
 	}
 	return ""

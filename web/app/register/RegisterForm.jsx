@@ -4,16 +4,31 @@ import Link from 'next/link'
 import { useState } from 'react'
 import Spinner from '@/components/Spinner'
 import { useAuth } from '@/context/AuthContext'
+import { useToast } from '@/context/ToastContext'
 import { resendVerification } from '@/lib/api'
 
 export default function RegisterForm() {
   const { register } = useAuth()
+  const toast = useToast()
   const [displayName, setDisplayName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [resending, setResending] = useState(false)
   const [sent, setSent] = useState(false)
+
+  const handleResend = async () => {
+    setResending(true)
+    try {
+      await resendVerification(email)
+      toast.show('Verification email sent')
+    } catch (err) {
+      toast.show(err.message, 'error')
+    } finally {
+      setResending(false)
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -38,8 +53,8 @@ export default function RegisterForm() {
         </p>
         <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
           Didn&apos;t get it? Check your spam folder, or{' '}
-          <button type="button" className="font-semibold" onClick={() => resendVerification(email).catch(() => {})}>
-            resend the email
+          <button type="button" className="font-semibold" onClick={handleResend} disabled={resending}>
+            {resending ? 'sending…' : 'resend the email'}
           </button>
           .
         </p>

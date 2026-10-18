@@ -216,6 +216,19 @@ func TestListSimilarCafes(t *testing.T) {
 		})
 	})
 
+	t.Run("Accepts a multibyte name up to 255 characters", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			name := strings.Repeat("é", 255)
+			m.ExpectQuery(`FROM cafes c`).WillReturnRows(sqlmock.NewRows([]string{"id", "name", "address"}))
+
+			c, w := newTestContext(t, http.MethodGet, "/api/cafes/similar?name="+url.QueryEscape(name), nil, nil, 0, "")
+			ListSimilarCafes(c)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.NoError(t, m.ExpectationsWereMet())
+		})
+	})
+
 	t.Run("Rejects a missing name", func(t *testing.T) {
 		withMockDB(t, func(m sqlmock.Sqlmock) {
 			c, w := newTestContext(t, http.MethodGet, "/api/cafes/similar", nil, nil, 0, "")
