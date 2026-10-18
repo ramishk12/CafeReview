@@ -26,6 +26,15 @@ describe('ListsClient', () => {
     expect(await screen.findByText(/Visited/)).toBeInTheDocument()
   })
 
+  it('shows an empty state that focuses the create field', async () => {
+    listMyLists.mockResolvedValue([])
+    render(<ListsClient />)
+    expect(await screen.findByText('No lists yet')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create a list' }))
+    expect(screen.getByPlaceholderText('List name')).toHaveFocus()
+  })
+
   it('creates a list from a suggestion', async () => {
     listMyLists.mockResolvedValue([])
     createList.mockResolvedValue({ id: 2, name: 'Favourites' })

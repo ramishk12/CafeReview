@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { createReview, listTags, updateReview, uploadReviewImage } from '@/lib/api'
 import { useToast } from '@/context/ToastContext'
+import Spinner from './Spinner'
 import StarPicker from './StarPicker'
 
 const MAX_BODY = 2000
@@ -217,7 +218,15 @@ export default function ReviewForm({ cafeId, existing, onDone }) {
 
       <div className="flex flex-wrap items-center gap-4">
         <button type="submit" disabled={submitting || body.trim() === ''} className="btn">
-          {submitting ? progress || 'Saving…' : existing ? 'Save changes' : 'Post review'}
+          {submitting ? (
+            <>
+              <Spinner /> {progress || 'Saving…'}
+            </>
+          ) : existing ? (
+            'Save changes'
+          ) : (
+            'Post review'
+          )}
         </button>
       </div>
     </form>

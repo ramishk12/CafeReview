@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import Spinner from '@/components/Spinner'
 import { useAuth } from '@/context/AuthContext'
 import { resendVerification } from '@/lib/api'
 
@@ -78,7 +79,13 @@ export default function RegisterForm() {
         </label>
         {error && <p className="alert-error">{error}</p>}
         <button type="submit" disabled={submitting} className="btn mt-2">
-          {submitting ? 'Creating account…' : 'Sign up'}
+          {submitting ? (
+            <>
+              <Spinner /> Creating account…
+            </>
+          ) : (
+            'Sign up'
+          )}
         </button>
       </form>
       <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">

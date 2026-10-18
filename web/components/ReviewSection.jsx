@@ -1,11 +1,13 @@
 'use client'
 
+import { MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { listMyReviewVotes, listTags, unvoteReview, voteReview } from '@/lib/api'
+import EmptyState from './EmptyState'
 import PhotoLightbox from './PhotoLightbox'
 import ReviewCard from './ReviewCard'
 import ReviewForm from './ReviewForm'
@@ -126,18 +128,18 @@ export default function ReviewSection({ cafe, reviews, total = 0, page = 1, page
         </div>
       ) : user ? (
         editingId === null && (
-          <div className="mb-10">
+          <div id="write-a-review" className="mb-10">
             <ReviewForm key="new" cafeId={cafe.id} />
           </div>
         )
-      ) : (
+      ) : reviews.length > 0 || total > 0 ? (
         <div className="card mb-10 flex flex-wrap items-center justify-between gap-4 p-6">
           <p className="text-slate-600 dark:text-slate-300">Share your experience with {cafe.name}.</p>
           <Link href={`/login?from=/cafes/${cafe.id}`} className="btn">
             Log in to review
           </Link>
         </div>
-      )}
+      ) : null}
 
       {photos.length > 0 && (
         <section aria-labelledby="photos-heading" className="mb-10">
@@ -246,9 +248,42 @@ export default function ReviewSection({ cafe, reviews, total = 0, page = 1, page
       )}
 
       {reviews.length === 0 ? (
-        <p className="card py-12 text-center text-slate-500">
-          {hasFilters ? 'No reviews match your filters.' : 'No reviews yet. Be the first.'}
-        </p>
+        hasFilters ? (
+          <EmptyState
+            title="No reviews match your filters"
+            description="Try a lower minimum rating or remove a filter."
+            action={
+              <button
+                type="button"
+                onClick={() => apply({ rating: undefined, photos: undefined, user_id: undefined, tags: undefined })}
+                className="btn"
+              >
+                Show all reviews
+              </button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={MessageSquare}
+            title="No reviews yet"
+            description={
+              closed
+                ? `${cafe.name} is closed, so it isn't accepting new reviews.`
+                : `Be the first to share your experience with ${cafe.name}.`
+            }
+            action={
+              closed ? null : user ? (
+                <a href="#write-a-review" className="btn">
+                  Write a review
+                </a>
+              ) : (
+                <Link href={`/login?from=/cafes/${cafe.id}`} className="btn">
+                  Log in to review
+                </Link>
+              )
+            }
+          />
+        )
       ) : (
         <ul className="grid gap-4">
           {reviews.map((review) => (

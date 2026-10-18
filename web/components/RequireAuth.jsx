@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
+import { Skeleton } from './Skeleton'
 
 // Client-side guard: sends signed-out users to /login and non-admins home for adminOnly pages.
 export default function RequireAuth({ children, adminOnly = false }) {
@@ -18,6 +19,14 @@ export default function RequireAuth({ children, adminOnly = false }) {
     else router.replace('/')
   }, [loading, allowed, user, router, pathname])
 
-  if (loading || !allowed) return <p className="py-16 text-center text-slate-500">Loading...</p>
+  // The shared skeleton replaces the plain "Loading..." text this used to show.
+  if (loading || !allowed) {
+    return (
+      <div aria-busy="true" aria-label="Loading" className="mx-auto mt-8 max-w-md space-y-4">
+        <Skeleton className="h-8 w-40 rounded-full" />
+        <Skeleton className="h-72" />
+      </div>
+    )
+  }
   return children
 }

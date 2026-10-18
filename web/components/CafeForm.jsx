@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import Spinner from '@/components/Spinner'
 import { createCafe, updateCafe } from '@/lib/api'
 import { useToast } from '@/context/ToastContext'
 
@@ -52,7 +53,15 @@ export default function CafeForm({ cafe }) {
         </label>
         {error && <p className="alert-error">{error}</p>}
         <button type="submit" disabled={submitting} className="btn mt-2">
-          {submitting ? 'Saving…' : editing ? 'Save changes' : 'Create cafe'}
+          {submitting ? (
+            <>
+              <Spinner /> Saving…
+            </>
+          ) : editing ? (
+            'Save changes'
+          ) : (
+            'Create cafe'
+          )}
         </button>
       </form>
     </section>

@@ -43,4 +43,13 @@ describe('ListDetailClient', () => {
     expect(screen.getAllByRole('link', { name: 'Demo User' })[0]).toHaveAttribute('href', '/users/7')
     expect(screen.getByText('Great.')).toBeInTheDocument()
   })
+
+  it('shows an empty state for a list with nothing in it', async () => {
+    getList.mockResolvedValue({ id: 1, name: 'Favourites', cafes: [], users: [], reviews: [] })
+
+    render(<ListDetailClient />)
+
+    expect(await screen.findByText('This list is empty')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Browse cafes' })).toHaveAttribute('href', '/')
+  })
 })

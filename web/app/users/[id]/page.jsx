@@ -1,6 +1,8 @@
+import { MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import AddToListButton from '@/components/AddToListButton'
+import EmptyState from '@/components/EmptyState'
 import Stars from '@/components/Stars'
 import { getUser, listUserReviews } from '@/lib/serverApi'
 import { avatarColor, formatDate, initials } from '@/lib/cafeTheme'
@@ -48,7 +50,16 @@ export default async function ProfilePage({ params, searchParams }) {
       </header>
 
       {reviews.length === 0 ? (
-        <p className="card p-6 text-slate-500 dark:text-slate-400">No reviews yet.</p>
+        <EmptyState
+          icon={MessageSquare}
+          title="No reviews yet"
+          description={`${user.display_name} hasn't reviewed any cafes yet.`}
+          action={
+            <Link href="/" className="btn">
+              Browse cafes
+            </Link>
+          }
+        />
       ) : (
         <ul className="grid gap-4">
           {reviews.map((review) => (

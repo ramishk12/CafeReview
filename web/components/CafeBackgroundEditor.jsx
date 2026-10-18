@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { clearCafeBackgroundImage, deleteCafeBackground, listTags, setCafeBackground, setCafeBackgroundImage } from '@/lib/api'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
+import Spinner from './Spinner'
 
 // Admin editor for a cafe's background. There are two sources: an uploaded image
 // and a chosen review photo. A chosen review photo wins; removing it falls back
@@ -67,7 +68,13 @@ export default function CafeBackgroundEditor({ cafeId, backgroundUrl, background
 
       <div className="flex flex-wrap items-center gap-3">
         <label className="btn cursor-pointer">
-          {uploading ? 'Uploading…' : 'Upload image'}
+          {uploading ? (
+            <>
+              <Spinner /> Uploading…
+            </>
+          ) : (
+            'Upload image'
+          )}
           <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={handleFile} disabled={uploading} />
         </label>
         {backgroundSource === 'uploaded' && (

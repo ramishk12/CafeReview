@@ -1,10 +1,12 @@
 'use client'
 
-import { Search, SlidersHorizontal } from 'lucide-react'
+import { Coffee, Search, SlidersHorizontal } from 'lucide-react'
+import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import CafeCard from './CafeCard'
+import EmptyState from './EmptyState'
 
 const SORTS = {
   rating: 'Top rated',
@@ -23,6 +25,7 @@ export default function CafeBrowser({ cafes, tags = [], total = 0, page = 1, pag
 
   const sort = searchParams.get('sort') || 'rating'
   const currentTags = (searchParams.get('tags') || '').split(',').filter(Boolean)
+  const hasFilters = Boolean((searchParams.get('q') || '').trim()) || currentTags.length > 0
   const [query, setQuery] = useState(searchParams.get('q') || '')
 
   const buildHref = (updates) => {
@@ -118,7 +121,30 @@ export default function CafeBrowser({ cafes, tags = [], total = 0, page = 1, pag
       )}
 
       {cafes.length === 0 ? (
-        <p className="card py-16 text-center text-slate-500">No cafes match your search.</p>
+        <EmptyState
+          icon={Coffee}
+          title={hasFilters ? 'No cafes match your search' : 'No cafes yet'}
+          description={
+            hasFilters
+              ? 'Try a different name or address, or remove a tag filter.'
+              : 'Cafes will show up here once they are added.'
+          }
+          action={
+            hasFilters ? (
+              <button
+                type="button"
+                onClick={() => router.push(buildHref({ q: undefined, tags: undefined, page: undefined }))}
+                className="btn"
+              >
+                Clear search
+              </button>
+            ) : isAdmin ? (
+              <Link href="/cafes/new" className="btn">
+                Add a cafe
+              </Link>
+            ) : null
+          }
+        />
       ) : (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
           {cafes.map((cafe) => (
