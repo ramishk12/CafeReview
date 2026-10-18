@@ -121,16 +121,12 @@ export default function CafeBrowser({ cafes, tags = [], total = 0, page = 1, pag
       )}
 
       {cafes.length === 0 ? (
-        <EmptyState
-          icon={Coffee}
-          title={hasFilters ? 'No cafes match your search' : 'No cafes yet'}
-          description={
-            hasFilters
-              ? 'Try a different name or address, or remove a tag filter.'
-              : 'Cafes will show up here once they are added.'
-          }
-          action={
-            hasFilters ? (
+        hasFilters ? (
+          <EmptyState
+            icon={Coffee}
+            title="No cafes match your search"
+            description="Try a different name or address, or remove a tag filter."
+            action={
               <button
                 type="button"
                 onClick={() => router.push(buildHref({ q: undefined, tags: undefined, page: undefined }))}
@@ -138,13 +134,33 @@ export default function CafeBrowser({ cafes, tags = [], total = 0, page = 1, pag
               >
                 Clear search
               </button>
-            ) : isAdmin ? (
-              <Link href="/cafes/new" className="btn">
-                Add a cafe
-              </Link>
-            ) : null
-          }
-        />
+            }
+          />
+        ) : total > 0 ? (
+          <EmptyState
+            icon={Coffee}
+            title="No cafes on this page"
+            description="This page is past the end of the list."
+            action={
+              <button type="button" onClick={() => router.push(buildHref({ page: undefined }))} className="btn">
+                Back to the first page
+              </button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={Coffee}
+            title="No cafes yet"
+            description="Cafes will show up here once they are added."
+            action={
+              isAdmin ? (
+                <Link href="/cafes/new" className="btn">
+                  Add a cafe
+                </Link>
+              ) : null
+            }
+          />
+        )
       ) : (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
           {cafes.map((cafe) => (

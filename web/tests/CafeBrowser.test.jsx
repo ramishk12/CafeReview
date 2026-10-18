@@ -84,4 +84,13 @@ describe('CafeBrowser', () => {
     render(<CafeBrowser cafes={[]} />)
     expect(screen.getByRole('link', { name: 'Add a cafe' })).toHaveAttribute('href', '/cafes/new')
   })
+
+  it('offers a way back when the page is past the end', () => {
+    params = new URLSearchParams('page=9')
+    render(<CafeBrowser cafes={[]} total={30} page={9} />)
+    expect(screen.getByText('No cafes on this page')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the first page' }))
+    expect(push).toHaveBeenCalledWith('/')
+  })
 })
