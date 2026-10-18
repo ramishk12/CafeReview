@@ -8,7 +8,7 @@ let params = new URLSearchParams()
 const push = vi.fn()
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: vi.fn(), push }),
+  useRouter: () => ({ refresh: vi.fn(), push, replace: vi.fn() }),
   usePathname: () => '/cafes/1',
   useSearchParams: () => params,
 }))
@@ -110,6 +110,34 @@ describe('ReviewSection', () => {
     render(<ReviewSection cafe={cafe} reviews={reviews} total={25} page={1} pageSize={10} />)
     fireEvent.click(screen.getByRole('button', { name: '2' }))
     expect(push).toHaveBeenCalledWith('/cafes/1?page=2')
+  })
+
+  it('offers a way back when the page is past the end', () => {
+    render(<ReviewSection cafe={cafe} reviews={[]} total={12} page={3} />)
+    expect(screen.getByText('No reviews on this page')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the first page' }))
+    expect(push).toHaveBeenCalledWith('/cafes/1')
+  })
+
+  it('treats another reviewer\'s user_id as an active filter', () => {
+    params = new URLSearchParams('user_id=8')
+    render(<ReviewSection cafe={cafe} reviews={[]} total={0} />)
+    expect(screen.getByText('No reviews match your filters')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument()
+  })
+
+  it('closes an edit when its review leaves the page', () => {
+    authState = { user: { id: 7, display_name: 'Demo User', role: 'user' } }
+    const { rerender } = render(<ReviewSection cafe={cafe} reviews={reviews} total={2} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByRole('heading', { name: 'Edit your review' })).toBeInTheDocument()
+
+    rerender(<ReviewSection cafe={cafe} reviews={[reviews[1]]} total={2} page={2} />)
+
+    expect(screen.queryByRole('heading', { name: 'Edit your review' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Write a review' })).toBeInTheDocument()
   })
 
   it('asks signed-out visitors to log in instead of showing a form', () => {

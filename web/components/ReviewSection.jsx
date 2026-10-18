@@ -56,7 +56,8 @@ export default function ReviewSection({ cafe, reviews, total = 0, page = 1, page
   const onlyPhotos = searchParams.get('photos') === '1'
   const tagParam = searchParams.get('tags') || ''
   const filterTagIds = useMemo(() => tagParam.split(',').filter(Boolean).map(Number), [tagParam])
-  const onlyMine = Boolean(user) && searchParams.get('user_id') === String(user.id)
+  const authorParam = searchParams.get('user_id') || ''
+  const onlyMine = Boolean(user) && authorParam === String(user.id)
 
   useEffect(() => {
     listTags('review')
@@ -85,6 +86,15 @@ export default function ReviewSection({ cafe, reviews, total = 0, page = 1, page
       .catch(() => {})
   }, [user, cafe.id, reviews])
 
+  // If the review being edited leaves the current page (paging, sorting, or a
+  // filter change), close the edit form so the list is not left with neither
+  // the edit form nor the "Write a review" form.
+  useEffect(() => {
+    if (editingId !== null && !reviews.some((review) => review.id === editingId)) {
+      setEditingId(null)
+    }
+  }, [reviews, editingId])
+
   const toggleVote = async (review) => {
     const current = votes[review.id] || { voted: false, count: review.helpful_count || 0 }
     try {
@@ -108,7 +118,9 @@ export default function ReviewSection({ cafe, reviews, total = 0, page = 1, page
   }
   const apply = (updates) => navigate({ ...updates, page: undefined })
 
-  const hasFilters = minRating > 0 || onlyPhotos || onlyMine || filterTagIds.length > 0
+  // Any author filter counts, even one that is not the signed-in user's, so the
+  // filter row (and its Clear button) stays available.
+  const hasFilters = minRating > 0 || onlyPhotos || Boolean(authorParam) || filterTagIds.length > 0
   const photos = useMemo(() => reviews.flatMap(reviewPhotos), [reviews])
   const openPhoto = (images, index) => setLightbox({ images, index })
   const setLightboxIndex = (index) => setLightbox((l) => (l ? { ...l, index } : l))
@@ -259,6 +271,17 @@ export default function ReviewSection({ cafe, reviews, total = 0, page = 1, page
                 className="btn"
               >
                 Show all reviews
+              </button>
+            }
+          />
+        ) : total > 0 ? (
+          <EmptyState
+            icon={MessageSquare}
+            title="No reviews on this page"
+            description="This page is past the end of the list."
+            action={
+              <button type="button" onClick={() => navigate({ page: undefined })} className="btn">
+                Back to the first page
               </button>
             }
           />

@@ -104,7 +104,13 @@ export default function ReviewForm({ cafeId, existing, onDone }) {
     }
     setFiles([])
     onDone?.()
-    router.refresh()
+    if (existing) {
+      router.refresh()
+    } else {
+      // Land on the first page, newest first, so the new review is visible.
+      router.replace(`/cafes/${cafeId}?sort=newest`)
+      router.refresh()
+    }
   }
 
   return (
