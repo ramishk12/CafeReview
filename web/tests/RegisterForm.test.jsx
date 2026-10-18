@@ -1,11 +1,14 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import RegisterForm from '@/app/register/RegisterForm'
 
 const registerMock = vi.fn()
+const showToast = vi.fn()
+const resendVerification = vi.fn()
 
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({ register: registerMock }) }))
-vi.mock('@/lib/api', () => ({ resendVerification: vi.fn().mockResolvedValue({}) }))
+vi.mock('@/context/ToastContext', () => ({ useToast: () => ({ show: showToast }) }))
+vi.mock('@/lib/api', () => ({ resendVerification: (...args) => resendVerification(...args) }))
 vi.mock('next/link', () => ({ default: ({ href, children }) => <a href={href}>{children}</a> }))
 
 function fillForm() {
@@ -18,6 +21,9 @@ function fillForm() {
 describe('RegisterForm', () => {
   beforeEach(() => {
     registerMock.mockReset()
+    showToast.mockReset()
+    resendVerification.mockReset()
+    resendVerification.mockResolvedValue({})
   })
 
   it('shows the check-your-inbox screen after signup and does not sign the user in', async () => {
@@ -43,5 +49,30 @@ describe('RegisterForm', () => {
 
     expect(await screen.findByText('Email is required')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sign up' })).toBeEnabled()
+  })
+
+  it('confirms a verification resend', async () => {
+    registerMock.mockResolvedValue({ message: 'ok' })
+
+    render(<RegisterForm />)
+    fillForm()
+    await screen.findByText('Check your inbox')
+
+    fireEvent.click(screen.getByRole('button', { name: 'resend the email' }))
+
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith('Verification email sent'))
+  })
+
+  it('reports a failed verification resend', async () => {
+    registerMock.mockResolvedValue({ message: 'ok' })
+    resendVerification.mockRejectedValue(new Error('Too many attempts'))
+
+    render(<RegisterForm />)
+    fillForm()
+    await screen.findByText('Check your inbox')
+
+    fireEvent.click(screen.getByRole('button', { name: 'resend the email' }))
+
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith('Too many attempts', 'error'))
   })
 })

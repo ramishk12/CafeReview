@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import AddToListButton from '@/components/AddToListButton'
 import EmptyState from '@/components/EmptyState'
+import PhotoThumbnails from '@/components/PhotoThumbnails'
 import Stars from '@/components/Stars'
 import { getUser, listUserReviews } from '@/lib/serverApi'
 import { avatarColor, formatDate, initials } from '@/lib/cafeTheme'
@@ -83,15 +84,7 @@ export default async function ProfilePage({ params, searchParams }) {
                   ))}
                 </div>
               )}
-              {review.images?.length > 0 && (
-                <ul className="mt-3 flex flex-wrap gap-2">
-                  {review.images.map((img) => (
-                    <li key={img.id}>
-                      <img src={img.url} alt="" loading="lazy" className="h-20 w-20 rounded-xl object-cover" />
-                    </li>
-                  ))}
-                </ul>
-              )}
+              {review.images?.length > 0 && <PhotoThumbnails images={review.images} authorName={review.author_name} />}
             </li>
           ))}
         </ul>

@@ -8,6 +8,7 @@ import (
 	"net/mail"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"cafe-review/internal/apierror"
 	"cafe-review/internal/database"
@@ -60,7 +61,8 @@ func Register(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid email address"})
 		return
 	}
-	if req.DisplayName == "" || len(req.DisplayName) > 100 {
+	// Count characters, not bytes, so the limit matches the form's maxLength.
+	if req.DisplayName == "" || utf8.RuneCountInString(req.DisplayName) > 100 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Display name must be 1-100 characters"})
 		return
 	}
