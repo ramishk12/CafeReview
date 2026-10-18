@@ -222,6 +222,9 @@ account.
 - `/cafes/:id/edit` admin: edit an existing cafe.
 - `/users/:id` public profile.
 - `/login`, `/register`, `/verify` account pages.
+- Loading and empty states are shared across routes: each data-backed route shows
+  a skeleton while it loads, and empty lists offer a next action (for example,
+  "Clear search" or "Write a review"). Busy form buttons show the same spinner.
 
 ## 11. Data model
 
@@ -248,4 +251,4 @@ account.
 
 ## 12. Not built yet
 
-Tracked as issues: city search and maps (#16), social sign-in (#33), account settings (#45), admin moderation (#35), reporting reviews (#40), review drafts (#43), following cafes and email (#46), similar-cafe warning (#36), loading and empty states (#39), and the launch work: image storage (#9), Docker (#48), enforcing the CSP (#62), structured logging (#49), and accessibility (#50).
+Tracked as issues: city search and maps (#16), social sign-in (#33), account settings (#45), admin moderation (#35), reporting reviews (#40), review drafts (#43), following cafes and email (#46), similar-cafe warning (#36), and the launch work: image storage (#9), Docker (#48), enforcing the CSP (#62), structured logging (#49), and accessibility (#50).

@@ -1,9 +1,12 @@
 'use client'
 
+import { ListChecks, TriangleAlert } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import CafeCard from '@/components/CafeCard'
+import EmptyState from '@/components/EmptyState'
+import { Skeleton } from '@/components/Skeleton'
 import Stars from '@/components/Stars'
 import { deleteList, getList, removeCafeFromList, removeReviewFromList, removeUserFromList } from '@/lib/api'
 import { formatDate } from '@/lib/cafeTheme'
@@ -45,8 +48,29 @@ export default function ListDetailClient() {
     }
   }
 
-  if (error) return <p className="card mx-auto mt-8 max-w-2xl p-6 text-slate-500">{error}</p>
-  if (!list) return <p className="py-16 text-center text-slate-500">Loading…</p>
+  if (error) {
+    return (
+      <EmptyState
+        icon={TriangleAlert}
+        title="We couldn't load this list"
+        description={error}
+        action={
+          <Link href="/lists" className="btn">
+            Back to lists
+          </Link>
+        }
+        className="mx-auto mt-8 max-w-2xl"
+      />
+    )
+  }
+  if (!list) {
+    return (
+      <div aria-busy="true" aria-label="Loading" className="space-y-4">
+        <Skeleton className="h-10 w-48 rounded-full" />
+        <Skeleton className="h-64" />
+      </div>
+    )
+  }
 
   const isEmpty = list.cafes.length === 0 && list.users.length === 0 && list.reviews.length === 0
 
@@ -59,7 +83,18 @@ export default function ListDetailClient() {
         </button>
       </div>
 
-      {isEmpty && <p className="card p-6 text-slate-500 dark:text-slate-400">Nothing in this list yet. Add cafes, reviewers, or reviews from their pages.</p>}
+      {isEmpty && (
+        <EmptyState
+          icon={ListChecks}
+          title="This list is empty"
+          description="Add cafes, reviewers, or reviews from their pages."
+          action={
+            <Link href="/" className="btn">
+              Browse cafes
+            </Link>
+          }
+        />
+      )}
 
       {list.cafes.length > 0 && (
         <section className="mb-10">

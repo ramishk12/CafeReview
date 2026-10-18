@@ -1,7 +1,11 @@
 'use client'
 
+import { ListChecks } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
+import EmptyState from '@/components/EmptyState'
+import { Skeleton } from '@/components/Skeleton'
+import Spinner from '@/components/Spinner'
 import { createList, deleteList, listMyLists, renameList } from '@/lib/api'
 import { useToast } from '@/context/ToastContext'
 
@@ -12,11 +16,13 @@ export default function ListsClient() {
   const [lists, setLists] = useState([])
   const [name, setName] = useState('')
   const [busy, setBusy] = useState(false)
+  const [ready, setReady] = useState(false)
 
   const load = () =>
     listMyLists()
       .then(setLists)
       .catch(() => {})
+      .finally(() => setReady(true))
 
   useEffect(() => {
     load()
@@ -65,9 +71,21 @@ export default function ListsClient() {
       <div className="card mb-8 p-6">
         <h2 className="mb-3 text-lg font-semibold tracking-tight">Create a list</h2>
         <div className="flex flex-wrap items-center gap-2">
-          <input className="field flex-1" placeholder="List name" value={name} onChange={(e) => setName(e.target.value)} />
+          <input
+            id="new-list-name"
+            className="field flex-1"
+            placeholder="List name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
           <button type="button" onClick={create} disabled={busy || !name.trim()} className="btn">
-            Create
+            {busy ? (
+              <>
+                <Spinner /> Creating…
+              </>
+            ) : (
+              'Create'
+            )}
           </button>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -84,8 +102,22 @@ export default function ListsClient() {
         </div>
       </div>
 
-      {lists.length === 0 ? (
-        <p className="card p-6 text-slate-500 dark:text-slate-400">No lists yet. Create one above.</p>
+      {!ready ? (
+        <div aria-busy="true" aria-label="Loading" className="space-y-3">
+          <Skeleton className="h-20" />
+          <Skeleton className="h-20" />
+        </div>
+      ) : lists.length === 0 ? (
+        <EmptyState
+          icon={ListChecks}
+          title="No lists yet"
+          description="Create your first list above to save cafes, reviewers, and reviews."
+          action={
+            <button type="button" onClick={() => document.getElementById('new-list-name')?.focus()} className="btn btn-ghost">
+              Create a list
+            </button>
+          }
+        />
       ) : (
         <ul className="grid gap-3">
           {lists.map((list) => (

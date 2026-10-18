@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
+import Spinner from '@/components/Spinner'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { resendVerification } from '@/lib/api'
@@ -70,7 +71,13 @@ export default function LoginForm() {
           </button>
         )}
         <button type="submit" disabled={submitting} className="btn mt-2">
-          {submitting ? 'Logging in…' : 'Log in'}
+          {submitting ? (
+            <>
+              <Spinner /> Logging in…
+            </>
+          ) : (
+            'Log in'
+          )}
         </button>
       </form>
       <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">

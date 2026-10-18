@@ -98,11 +98,12 @@ describe('ReviewSection', () => {
     expect(push).toHaveBeenCalledWith('/cafes/1?tags=3')
   })
 
-  it('shows a filter empty state and a way to clear filters', () => {
+  it('shows a filter empty state with a way to show all reviews', () => {
     params = new URLSearchParams('rating=4')
     render(<ReviewSection cafe={cafe} reviews={[]} total={0} />)
-    expect(screen.getByText('No reviews match your filters.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument()
+    expect(screen.getByText('No reviews match your filters')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Show all reviews' }))
+    expect(push).toHaveBeenCalledWith('/cafes/1')
   })
 
   it('shows a pager and navigates between pages', () => {
@@ -166,8 +167,15 @@ describe('ReviewSection', () => {
     expect(screen.getByText('Seasonal menu')).toBeInTheDocument()
   })
 
-  it('shows an empty state with no reviews', () => {
-    render(<ReviewSection cafe={cafe} reviews={[]} />)
-    expect(screen.getByText('No reviews yet. Be the first.')).toBeInTheDocument()
+  it('offers to log in from the empty state when there are no reviews', () => {
+    render(<ReviewSection cafe={cafe} reviews={[]} total={0} />)
+    expect(screen.getByText('No reviews yet')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Log in to review' })).toHaveAttribute('href', '/login?from=/cafes/1')
+  })
+
+  it('offers to write a review from the empty state when signed in', () => {
+    authState = { user: { id: 7, display_name: 'Demo User', role: 'user' } }
+    render(<ReviewSection cafe={cafe} reviews={[]} total={0} />)
+    expect(screen.getByRole('link', { name: 'Write a review' })).toHaveAttribute('href', '#write-a-review')
   })
 })

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import Spinner from '@/components/Spinner'
 import { verifyEmail } from '@/lib/api'
 
 // Confirms the email from the link in the verification email.
@@ -37,7 +38,11 @@ export default function VerifyClient() {
 
   return (
     <section className="card mx-auto mt-12 max-w-md p-8 text-center">
-      {state === 'loading' && <p className="text-slate-500 dark:text-slate-400">Confirming your email…</p>}
+      {state === 'loading' && (
+        <p className="flex items-center justify-center gap-2 text-slate-500 dark:text-slate-400">
+          <Spinner /> Confirming your email…
+        </p>
+      )}
 
       {state === 'ok' && (
         <>
