@@ -4,7 +4,7 @@ import { Pencil, ThumbsUp, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
-import { deleteReview, getReviewRevisions } from '@/lib/api'
+import { deleteReview, deleteReviewImage, getReviewRevisions } from '@/lib/api'
 import { formatDate } from '@/lib/cafeTheme'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
@@ -18,6 +18,7 @@ export default function ReviewCard({ review, isOwner, voted = false, helpfulCoun
   const toast = useToast()
   const { user, isAdmin } = useAuth()
   const [deleting, setDeleting] = useState(false)
+  const [removingPhotoId, setRemovingPhotoId] = useState(null)
   const [error, setError] = useState('')
   const [history, setHistory] = useState(null)
 
@@ -46,6 +47,21 @@ export default function ReviewCard({ review, isOwner, voted = false, helpfulCoun
     } catch (err) {
       setError(err.message)
       setDeleting(false)
+    }
+  }
+
+  const handleRemovePhoto = async (imageId) => {
+    if (!window.confirm('Remove this photo? This cannot be undone.')) return
+    setRemovingPhotoId(imageId)
+    setError('')
+    try {
+      await deleteReviewImage(review.id, imageId)
+      toast.show('Photo removed')
+      router.refresh()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setRemovingPhotoId(null)
     }
   }
 
@@ -96,7 +112,17 @@ export default function ReviewCard({ review, isOwner, voted = false, helpfulCoun
                   className="h-32 w-32 object-cover transition duration-300 hover:scale-105 sm:h-36 sm:w-36"
                 />
               </button>
-              {isOwner && <ReviewImageTagger image={img} />}
+              {(isOwner || isAdmin) && <ReviewImageTagger image={img} />}
+              {isOwner && (
+                <button
+                  type="button"
+                  onClick={() => handleRemovePhoto(img.id)}
+                  disabled={removingPhotoId === img.id}
+                  className="mt-1 text-xs font-semibold text-rose-600 hover:text-rose-500 disabled:opacity-50 dark:text-rose-400"
+                >
+                  {removingPhotoId === img.id ? 'Removing…' : 'Remove photo'}
+                </button>
+              )}
             </li>
           ))}
         </ul>

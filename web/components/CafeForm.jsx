@@ -98,17 +98,22 @@ export default function CafeForm({ cafe }) {
           <textarea className="field min-h-24 resize-y" value={description} onChange={(e) => setDescription(e.target.value)} rows={4} />
         </label>
         {error && <p className="alert-error">{error}</p>}
-        <button type="submit" disabled={submitting} className="btn mt-2">
-          {submitting ? (
-            <>
-              <Spinner /> Saving…
-            </>
-          ) : editing ? (
-            'Save changes'
-          ) : (
-            'Create cafe'
-          )}
-        </button>
+        <div className="mt-2 flex flex-wrap items-center gap-3">
+          <button type="submit" disabled={submitting} className="btn">
+            {submitting ? (
+              <>
+                <Spinner /> Saving…
+              </>
+            ) : editing ? (
+              'Save changes'
+            ) : (
+              'Create cafe'
+            )}
+          </button>
+          <Link href={editing ? `/cafes/${cafe.id}` : '/'} className="btn btn-ghost">
+            Cancel
+          </Link>
+        </div>
       </form>
     </section>
   )

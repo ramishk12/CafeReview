@@ -1,14 +1,18 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import ReviewCard from '@/components/ReviewCard'
 
 const onVote = vi.fn()
+const deleteReviewImage = vi.fn()
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }) }))
 vi.mock('next/link', () => ({ default: ({ href, children }) => <a href={href}>{children}</a> }))
 vi.mock('@/lib/api', () => ({
   deleteReview: vi.fn(),
+  deleteReviewImage: (...args) => deleteReviewImage(...args),
   getReviewRevisions: vi.fn(),
+  listTags: vi.fn().mockResolvedValue([]),
+  setReviewImageTags: vi.fn(),
   listMyLists: vi.fn().mockResolvedValue([]),
   addCafeToList: vi.fn(),
   removeCafeFromList: vi.fn(),
@@ -39,5 +43,29 @@ describe('ReviewCard', () => {
   it('does not offer a helpful vote on your own review', () => {
     render(<ReviewCard review={review} isOwner voted={false} helpfulCount={0} onVote={onVote} onOpenPhoto={() => {}} />)
     expect(screen.queryByRole('button', { name: /helpful/i })).not.toBeInTheDocument()
+  })
+
+  it('lets the owner remove a photo after confirming', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    deleteReviewImage.mockResolvedValue(null)
+    const withPhoto = { ...review, id: 11, images: [{ id: 100, url: '/uploads/a.jpg', tags: [] }] }
+
+    render(<ReviewCard review={withPhoto} isOwner voted={false} helpfulCount={0} onVote={onVote} onOpenPhoto={() => {}} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove photo' }))
+
+    await waitFor(() => expect(deleteReviewImage).toHaveBeenCalledWith(11, 100))
+    confirmSpy.mockRestore()
+  })
+
+  it('does not remove a photo when the confirmation is declined', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const withPhoto = { ...review, id: 11, images: [{ id: 100, url: '/uploads/a.jpg', tags: [] }] }
+
+    render(<ReviewCard review={withPhoto} isOwner voted={false} helpfulCount={0} onVote={onVote} onOpenPhoto={() => {}} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Remove photo' }))
+    expect(deleteReviewImage).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
   })
 })
