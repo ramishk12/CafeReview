@@ -533,6 +533,42 @@ func TestIntegrationVotes(t *testing.T) {
 	assert.False(t, removed.Voted)
 }
 
+// TestIntegrationSimilarCafes exercises the duplicate check against a real
+// database: the pg_trgm extension, the % operator, and similarity() all live in
+// PostgreSQL, so sqlmock cannot stand in for them.
+func TestIntegrationSimilarCafes(t *testing.T) {
+	db := integrationDB(t)
+
+	bean := testCafe(t, db, "Bean There", "12 Market St")
+	testCafe(t, db, "Morning Crumb", "48 Elm Ave")
+
+	call := func(t *testing.T, query string) []models.SimilarCafe {
+		t.Helper()
+		c, w := newTestContext(t, http.MethodGet, "/api/cafes/similar"+query, nil, nil, 0, "")
+		ListSimilarCafes(c)
+		requireStatus(t, w, http.StatusOK)
+		var similar []models.SimilarCafe
+		decodeJSON(t, w, &similar)
+		return similar
+	}
+
+	// A misspelled name still finds the existing cafe through trigram matching.
+	matches := call(t, "?name=Bean+Ther")
+	if assert.NotEmpty(t, matches) {
+		assert.Equal(t, bean, matches[0].ID)
+	}
+
+	// A different name at the same address is flagged as well.
+	matches = call(t, "?name=Unknown+Place&address=12+Market+St")
+	if assert.NotEmpty(t, matches) {
+		assert.Equal(t, bean, matches[0].ID)
+	}
+
+	// Nothing similar returns an empty list, not an error.
+	matches = call(t, "?name=Completely+Different")
+	assert.Empty(t, matches)
+}
+
 // TestIntegrationMigrationsAndSeeds proves Migrate and the seeds can run
 // repeatedly against a real database, so fresh and existing databases both work.
 func TestIntegrationMigrationsAndSeeds(t *testing.T) {

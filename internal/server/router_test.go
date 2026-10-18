@@ -43,7 +43,7 @@ func TestRouterRegistersNewRoutes(t *testing.T) {
 func TestPublicAndReviewRoutes(t *testing.T) {
 	r := NewRouter(t.TempDir())
 
-	for _, path := range []string{"/api/health", "/api/cafes", "/api/cafes/:id", "/api/cafes/:id/reviews"} {
+	for _, path := range []string{"/api/health", "/api/cafes", "/api/cafes/similar", "/api/cafes/:id", "/api/cafes/:id/reviews"} {
 		assert.True(t, hasRoute(r, http.MethodGet, path), "GET "+path)
 	}
 	assert.True(t, hasRoute(r, http.MethodPost, "/api/auth/register"))

@@ -51,6 +51,7 @@ func NewRouter(uploadDir string) *gin.Engine {
 	api.GET("/users/:id", handlers.GetUserProfile)
 	api.GET("/users/:id/reviews", handlers.ListUserReviews)
 	api.GET("/cafes", handlers.ListCafes)
+	api.GET("/cafes/similar", handlers.ListSimilarCafes)
 	api.GET("/cafes/:id", handlers.GetCafe)
 	api.GET("/cafes/:id/reviews", handlers.ListReviews)
 

@@ -7,6 +7,9 @@ import (
 // Migrate creates the schema if it does not already exist.
 func Migrate() error {
 	migrations := []string{
+		// The similar-cafe check (GET /cafes/similar) uses trigram matching to
+		// spot possible duplicates.
+		`CREATE EXTENSION IF NOT EXISTS pg_trgm`,
 		`CREATE TABLE IF NOT EXISTS users (
 			id SERIAL PRIMARY KEY,
 			email VARCHAR(255) NOT NULL UNIQUE,
@@ -185,6 +188,8 @@ func Migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_list_users_user_id ON list_users(user_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_reviews_cafe_id ON reviews(cafe_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_review_images_review_id ON review_images(review_id)`,
+		// Speeds up the trigram match on cafe names used by GET /cafes/similar.
+		`CREATE INDEX IF NOT EXISTS idx_cafes_name_trgm ON cafes USING gin (name gin_trgm_ops)`,
 	}
 
 	for i, stmt := range migrations {

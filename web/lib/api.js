@@ -95,6 +95,12 @@ export const resendVerification = (email) => request('/auth/verify/resend', { me
 export const createCafe = (cafe) => request('/cafes', { method: 'POST', body: cafe })
 export const updateCafe = (id, cafe) => request(`/cafes/${id}`, { method: 'PUT', body: cafe })
 export const deleteCafe = (id) => request(`/cafes/${id}`, { method: 'DELETE' })
+// listSimilarCafes powers the advisory duplicate check on the add-cafe form.
+export const listSimilarCafes = (name, address = '') => {
+  const params = new URLSearchParams({ name })
+  if (address) params.set('address', address)
+  return request(`/cafes/similar?${params.toString()}`)
+}
 export const closeCafe = (id) => request(`/cafes/${id}/close`, { method: 'POST' })
 export const reopenCafe = (id) => request(`/cafes/${id}/reopen`, { method: 'POST' })
 

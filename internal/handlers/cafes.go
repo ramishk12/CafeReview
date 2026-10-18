@@ -204,6 +204,59 @@ func GetCafe(c *gin.Context) {
 	c.JSON(http.StatusOK, cafe)
 }
 
+// maxSimilarCafes caps how many possible duplicates the check returns.
+const maxSimilarCafes = 5
+
+// ListSimilarCafes returns existing cafes whose name or address looks like the
+// one being added, so an admin can check before creating a duplicate. The check
+// is advisory: nothing here blocks a create. Query: ?name= and optional
+// ?address=. Matching is case-insensitive and uses trigrams (pg_trgm) plus
+// substring matching; the address is matched the same way when one is given,
+// and matches that are close in both fields sort first.
+func ListSimilarCafes(c *gin.Context) {
+	name := strings.TrimSpace(c.Query("name"))
+	if name == "" || len(name) > 255 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Name must be 1-255 characters"})
+		return
+	}
+	address := strings.TrimSpace(c.Query("address"))
+
+	likeName := "%" + likeEscaper.Replace(name) + "%"
+	likeAddress := "%" + likeEscaper.Replace(address) + "%"
+
+	rows, err := database.DB.Query(`
+		SELECT c.id, c.name, c.address
+		FROM cafes c
+		WHERE lower(c.name) % lower($1)
+		   OR c.name ILIKE $2
+		   OR ($3 <> '' AND (lower(c.address) % lower($3) OR c.address ILIKE $4))
+		ORDER BY (similarity(lower(c.name), lower($1)) +
+		          CASE WHEN $3 = '' THEN 0 ELSE similarity(lower(c.address), lower($3)) END) DESC,
+		         c.name ASC, c.id ASC
+		LIMIT $5`,
+		name, likeName, address, likeAddress, maxSimilarCafes)
+	if err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	defer rows.Close()
+
+	similar := []models.SimilarCafe{}
+	for rows.Next() {
+		var match models.SimilarCafe
+		if err := rows.Scan(&match.ID, &match.Name, &match.Address); err != nil {
+			apierror.Internal(c, err)
+			return
+		}
+		similar = append(similar, match)
+	}
+	if err := rows.Err(); err != nil {
+		apierror.Internal(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, similar)
+}
+
 type cafeRequest struct {
 	Name        string `json:"name"`
 	Address     string `json:"address"`

@@ -181,6 +181,64 @@ func TestListCafes(t *testing.T) {
 	}
 }
 
+func TestListSimilarCafes(t *testing.T) {
+	t.Run("Returns cafes with a similar name or address", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`lower\(c\.name\) % lower\(\$1\)`).
+				WithArgs("Bean There", "%Bean There%", "12 Market St", "%12 Market St%", 5).
+				WillReturnRows(sqlmock.NewRows([]string{"id", "name", "address"}).AddRow(1, "Bean There", "12 Market St"))
+
+			c, w := newTestContext(t, http.MethodGet, "/api/cafes/similar?name=Bean+There&address=12+Market+St", nil, nil, 0, "")
+			ListSimilarCafes(c)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			var similar []models.SimilarCafe
+			assert.NoError(t, json.Unmarshal(w.Body.Bytes(), &similar))
+			if assert.Len(t, similar, 1) {
+				assert.Equal(t, "Bean There", similar[0].Name)
+			}
+			assert.NoError(t, m.ExpectationsWereMet())
+		})
+	})
+
+	t.Run("Returns an empty list when nothing matches", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`FROM cafes c`).
+				WithArgs("Zebra Cafe", "%Zebra Cafe%", "", "%%", 5).
+				WillReturnRows(sqlmock.NewRows([]string{"id", "name", "address"}))
+
+			c, w := newTestContext(t, http.MethodGet, "/api/cafes/similar?name=Zebra+Cafe", nil, nil, 0, "")
+			ListSimilarCafes(c)
+
+			assert.Equal(t, http.StatusOK, w.Code)
+			assert.JSONEq(t, `[]`, w.Body.String())
+			assert.NoError(t, m.ExpectationsWereMet())
+		})
+	})
+
+	t.Run("Rejects a missing name", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			c, w := newTestContext(t, http.MethodGet, "/api/cafes/similar", nil, nil, 0, "")
+			ListSimilarCafes(c)
+
+			assert.Equal(t, http.StatusBadRequest, w.Code)
+			assert.NoError(t, m.ExpectationsWereMet())
+		})
+	})
+
+	t.Run("Returns 500 when the query fails", func(t *testing.T) {
+		withMockDB(t, func(m sqlmock.Sqlmock) {
+			m.ExpectQuery(`FROM cafes c`).WillReturnError(errors.New("connection lost"))
+
+			c, w := newTestContext(t, http.MethodGet, "/api/cafes/similar?name=Bean", nil, nil, 0, "")
+			ListSimilarCafes(c)
+
+			assert.Equal(t, http.StatusInternalServerError, w.Code)
+			assert.NoError(t, m.ExpectationsWereMet())
+		})
+	})
+}
+
 func TestUpdateCafe(t *testing.T) {
 	now := time.Now()
 	params := gin.Params{{Key: "id", Value: "1"}}
