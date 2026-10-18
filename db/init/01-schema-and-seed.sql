@@ -4,6 +4,9 @@
 -- The schema mirrors internal/database/migrate.go. Keep them in sync.
 -- Seeds only sample cafes. Create accounts with cmd/createadmin or by registering.
 
+-- The similar-cafe check uses trigram matching (GET /cafes/similar).
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -153,6 +156,8 @@ CREATE INDEX IF NOT EXISTS idx_list_users_user_id ON list_users(user_id);
 
 CREATE INDEX IF NOT EXISTS idx_reviews_cafe_id ON reviews(cafe_id);
 CREATE INDEX IF NOT EXISTS idx_review_images_review_id ON review_images(review_id);
+-- Speeds up the trigram match on cafe names used by GET /cafes/similar.
+CREATE INDEX IF NOT EXISTS idx_cafes_name_trgm ON cafes USING gin (name gin_trgm_ops);
 
 -- Starter cafe tags. Shared with review and image tags through the scope column.
 INSERT INTO tags (name, category, scope) VALUES

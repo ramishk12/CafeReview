@@ -59,6 +59,13 @@ type UserSummary struct {
 	DisplayName string `json:"display_name"`
 }
 
+// SimilarCafe is a possible duplicate returned by the similar-cafe check.
+type SimilarCafe struct {
+	ID      int    `json:"id"`
+	Name    string `json:"name"`
+	Address string `json:"address"`
+}
+
 type Tag struct {
 	ID       int    `json:"id"`
 	Name     string `json:"name"`

@@ -49,8 +49,11 @@ current behaviour.
 - **Admin only:** create, edit (name, address, description), and delete a cafe.
   Admins have an Edit, Close/Reopen, and Delete toolbar on the cafe page, an Edit
   action on the browse list cards, and a dedicated edit page. Deleting a cafe
-  also deletes its reviews and their photo files. This admin surface is the base
-  for later actions (such as setting a background image).
+  also deletes its reviews and their photo files.
+- **Duplicate check (admin):** while adding a cafe, the form checks for existing
+  cafes with a similar name or address (case-insensitive, trigram matching) and
+  shows them before saving. The warning is advisory; the cafe can still be
+  created.
 - **Closing (admin):** an admin can close or reopen a cafe. A closed cafe shows a
   "Closed" banner and a "Closed" badge on cards, accepts no new reviews, and its
   existing reviews can no longer be edited (they can still be deleted). Closing
@@ -177,6 +180,7 @@ account.
 | GET | `/auth/verify` | Confirms an email with `?token=` |
 | POST | `/auth/verify/resend` | Sends a new link |
 | GET | `/cafes` | Search `q`, tag filter `tags` (comma-separated IDs, AND), `sort`, `limit`, `offset` |
+| GET | `/cafes/similar` | Query: `name` (required), `address`. Possible duplicates, advisory |
 | GET | `/cafes/:id` | |
 | GET | `/tags` | Query: `scope` (`cafe`, `review`, `image`). Approved tags only |
 | GET | `/users/:id` | Public profile: display name, join date, review count |
@@ -251,4 +255,4 @@ account.
 
 ## 12. Not built yet
 
-Tracked as issues: city search and maps (#16), social sign-in (#33), account settings (#45), admin moderation (#35), reporting reviews (#40), review drafts (#43), following cafes and email (#46), similar-cafe warning (#36), and the launch work: image storage (#9), Docker (#48), enforcing the CSP (#62), structured logging (#49), and accessibility (#50).
+Tracked as issues: city search and maps (#16), social sign-in (#33), account settings (#45), admin moderation (#35), reporting reviews (#40), review drafts (#43), following cafes and email (#46), and the launch work: image storage (#9), Docker (#48), enforcing the CSP (#62), structured logging (#49), and accessibility (#50).
